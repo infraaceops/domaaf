@@ -198,21 +198,37 @@ async function compressImage(file, targetKB) {
 async function loadProperties() {
     const grid = document.getElementById('properties-grid');
 
-    // Fetch from Apps Script or fallback to mock
     try {
         if (WEB_APP_URL.includes("YOUR_")) throw "Setup URL first";
-        const response = await fetch(WEB_APP_URL);
+
+        // Use a simpler fetch for GET to avoid some CORS edge cases
+        const response = await fetch(WEB_APP_URL, {
+            method: 'GET',
+            cache: 'no-cache'
+        });
 
         if (response.status === 403) {
-            console.error("Access Denied: Is the Apps Script deployed as 'Anyone'?");
-            alert("Backend Access Denied (403). Please ensure Google Apps Script is deployed with access set to 'Anyone'.");
-            throw "403 Forbidden";
+            console.error("403 Forbidden: Apps Script access denied.");
+            throw new Error("ACCESS_DENIED");
         }
 
+        if (!response.ok) throw new Error("FETCH_FAILED");
+
         const data = await response.json();
+
+        if (data.status === "error") {
+            console.error("Backend Error:", data.message);
+            throw new Error("BACKEND_ERROR");
+        }
+
         renderGrid(data);
     } catch (e) {
-        console.log("Using mock data while URL is not set or access is denied:", e);
+        console.warn("Using mock data due to error:", e.message || e);
+
+        if (e.message === "ACCESS_DENIED") {
+            alert("⚠️ Backend Access Denied (403). Please verify your Apps Script is deployed as 'Anyone'.");
+        }
+
         const mockData = [
             { id: 1, title: 'Modern Studio in Akwa', price: '150,000', type: 'Studio', plan: 'Gold', img: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b026a?auto=format&fit=crop&w=400&q=80' },
             { id: 2, title: 'Luxury Villa Bastos', price: '850,000', type: 'Villa', plan: 'Platinum', img: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=400&q=80' },

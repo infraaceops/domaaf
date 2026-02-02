@@ -14,22 +14,27 @@
 const FOLDER_ID = "YOUR_GOOGLE_DRIVE_FOLDER_ID_HERE";
 
 function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Properties");
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift();
-  
-  const properties = data.map(row => {
-    let obj = {};
-    headers.forEach((h, i) => obj[h] = row[i]);
-    return obj;
-  });
-  
-  // Sort by Tier (Diamond > Platinum > Gold > Silver > Free)
-  const tierOrder = { "Diamond": 5, "Platinum": 4, "Gold": 3, "Silver": 2, "Free": 1 };
-  properties.sort((a,b) => (tierOrder[b.plan] || 0) - (tierOrder[a.plan] || 0));
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Properties");
+    const data = sheet.getDataRange().getValues();
+    const headers = data.shift();
+    
+    const properties = data.map(row => {
+      let obj = {};
+      headers.forEach((h, i) => obj[h] = row[i]);
+      return obj;
+    });
+    
+    // Sort by Tier (Diamond > Platinum > Gold > Silver > Free)
+    const tierOrder = { "Diamond": 5, "Platinum": 4, "Gold": 3, "Silver": 2, "Free": 1 };
+    properties.sort((a,b) => (tierOrder[b.plan] || 0) - (tierOrder[a.plan] || 0));
 
-  return ContentService.createTextOutput(JSON.stringify(properties))
-    .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(properties))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function doPost(e) {

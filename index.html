@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Domaaf | Premium Rentals in Cameroon</title>
     <meta name="description" content="Find the best rental properties in Cameroon. Upload your property for free.">
-    
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
-    
+
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
 </head>
+
 <body>
     <header class="glass-nav">
         <nav class="container">
@@ -39,7 +41,7 @@
             <div class="hero-content">
                 <h1>Find Your Perfect Stay in <span class="gradient-text">Cameroon</span></h1>
                 <p>Modern homes, apartments, and studios at your fingertips. Totally free to list, easy to find.</p>
-                
+
                 <div class="search-bar">
                     <div class="search-input">
                         <span>📍</span>
@@ -74,7 +76,7 @@
                 <h2>Featured Properties</h2>
                 <div class="badge-gold">Premium Listings</div>
             </div>
-            
+
             <div id="properties-grid" class="grid">
                 <!-- Skeleton Loading or Placeholder -->
                 <div class="property-card loading"></div>
@@ -107,7 +109,7 @@
                 <input type="text" placeholder="Title (e.g. Modern Apartment in Bonapriso)" required>
                 <textarea placeholder="Description" required></textarea>
                 <input type="number" placeholder="Price (XAF / Month)" required>
-                
+
                 <div class="file-upload">
                     <label for="image-input" class="file-label">
                         <span>📸 Upload Image (Auto-Shrink to 10KB)</span>
@@ -151,7 +153,8 @@
                 <button type="submit" class="btn-primary w-full">Continue</button>
                 <div class="divider"><span>OR</span></div>
                 <button type="button" class="btn-google w-full">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google">
+                    <img src="https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png" alt="Google"
+                        style="width:20px; vertical-align:middle; margin-right:8px;">
                     Login with Google
                 </button>
             </form>
@@ -166,4 +169,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

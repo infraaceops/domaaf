@@ -14,16 +14,17 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
-    // Explicitly do not intercept Google Apps Script calls to prevent NS_ERROR_INTERCEPTION_FAILED
-    if (event.request.url.includes('script.google.com')) {
+    // Only intercept requests for our own origin (local assets)
+    // External APIs, Fonts, and Images should bypass the Service Worker
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) {
         return;
     }
 
     event.respondWith(
         caches.match(event.request).then(response => {
             return response || fetch(event.request).catch(err => {
-                // Return an error or a fallback if necessary
-                console.warn('Fetch failed:', err);
+                console.warn('Local fetch failed:', err);
             });
         })
     );

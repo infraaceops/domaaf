@@ -43,17 +43,26 @@ function initFormSubmission() {
         if (img) formData.image = img.src;
 
         try {
-            const response = await fetch(WEB_APP_URL, {
+            // Using POST with mode: 'no-cors' to avoid CORS preflight (OPTIONS)
+            // Note: We cannot read the response body or status with no-cors,
+            // but the request will still reach the Apps Script.
+            await fetch(WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Apps Script requires no-cors sometimes or custom headers
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'text/plain', // Simple content type avoids preflight
+                },
                 body: JSON.stringify(formData)
             });
-            alert("Property submitted! It will appear after review.");
+
+            alert("Property submitted successfully! (It will appear after owner review)");
             form.reset();
             document.getElementById('upload-modal').classList.add('hidden');
+            imagePreview.innerHTML = "";
+            videoPreview.innerHTML = "";
         } catch (err) {
-            console.error(err);
-            alert("Error submitting property. Check console.");
+            console.error("Submission Error:", err);
+            alert("Error submitting property. Please check your internet or script permissions.");
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerText = "Submit Listing";

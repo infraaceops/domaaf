@@ -1,5 +1,5 @@
 // Domaaf App Logic
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Ap_E1zATVguMwhuhZHxv2xT6l3wJozEFaCvg1eYLPaED8-UyKwLIFSchjJ2JRvE1bg/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyuWN8N3taKjpby78tbUPuh9Sg1Sj7befH6u2R1Y-Wkd0OTBLWTkg2mGgLQuXdK/exec";
 
 document.addEventListener('DOMContentLoaded', () => {
     initModals();

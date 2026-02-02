@@ -34,23 +34,29 @@ function initFormSubmission() {
             description: form[1].value,
             price: form[2].value,
             plan: document.getElementById('plan-choice').value,
-            // Images and videos would be base64 encoded here
-            // Note: For large videos, base64 might be slow, but for 5s/5MB it works.
+            userEmail: "user@example.com" // Placeholder for now
         };
 
         // Get compressed images from previews
         const img = document.querySelector('#image-preview img');
         if (img) formData.image = img.src;
 
+        // Get video from input and convert to base64
+        const videoInput = document.getElementById('video-input');
+        if (videoInput.files[0]) {
+            try {
+                formData.video = await fileToBase64(videoInput.files[0]);
+            } catch (vErr) {
+                console.warn("Video encoding skipped:", vErr);
+            }
+        }
+
         try {
-            // Using POST with mode: 'no-cors' to avoid CORS preflight (OPTIONS)
-            // Note: We cannot read the response body or status with no-cors,
-            // but the request will still reach the Apps Script.
             await fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
-                    'Content-Type': 'text/plain', // Simple content type avoids preflight
+                    'Content-Type': 'text/plain',
                 },
                 body: JSON.stringify(formData)
             });
@@ -58,8 +64,8 @@ function initFormSubmission() {
             alert("Property submitted successfully! (It will appear after owner review)");
             form.reset();
             document.getElementById('upload-modal').classList.add('hidden');
-            imagePreview.innerHTML = "";
-            videoPreview.innerHTML = "";
+            document.getElementById('image-preview').innerHTML = "";
+            document.getElementById('video-preview').innerHTML = "";
         } catch (err) {
             console.error("Submission Error:", err);
             alert("Error submitting property. Please check your internet or script permissions.");
@@ -68,6 +74,18 @@ function initFormSubmission() {
             submitBtn.innerText = "Submit Listing";
         }
     };
+}
+
+/**
+ * Helper to convert File to Base64
+ */
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 }
 
 // --- Modal Logic ---

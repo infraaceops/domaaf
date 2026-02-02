@@ -1,5 +1,5 @@
 // Domaaf App Logic
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwhzDdhxq6Syq7CFejfWM_AWrWytG9SSqcr7EjZpjBauJurP10wHpq8CclldimX4V7r/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Ap_E1zATVguMwhuhZHxv2xT6l3wJozEFaCvg1eYLPaED8-UyKwLIFSchjJ2JRvE1bg/exec";
 
 document.addEventListener('DOMContentLoaded', () => {
     initModals();
@@ -193,10 +193,17 @@ async function loadProperties() {
     try {
         if (WEB_APP_URL.includes("YOUR_")) throw "Setup URL first";
         const response = await fetch(WEB_APP_URL);
+
+        if (response.status === 403) {
+            console.error("Access Denied: Is the Apps Script deployed as 'Anyone'?");
+            alert("Backend Access Denied (403). Please ensure Google Apps Script is deployed with access set to 'Anyone'.");
+            throw "403 Forbidden";
+        }
+
         const data = await response.json();
         renderGrid(data);
     } catch (e) {
-        console.log("Using mock data while URL is not set");
+        console.log("Using mock data while URL is not set or access is denied:", e);
         const mockData = [
             { id: 1, title: 'Modern Studio in Akwa', price: '150,000', type: 'Studio', plan: 'Gold', img: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b026a?auto=format&fit=crop&w=400&q=80' },
             { id: 2, title: 'Luxury Villa Bastos', price: '850,000', type: 'Villa', plan: 'Platinum', img: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=400&q=80' },

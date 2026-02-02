@@ -1,0 +1,16 @@
+{
+    "name": "Domaaf Cameroon",
+    "short_name": "Domaaf",
+    "description": "Premium Property Rentals in Cameroon",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#10b981",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/609/609803.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

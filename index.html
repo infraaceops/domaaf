@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domaaf | Premium Rentals in Cameroon</title>
+    <meta name="description" content="Find the best rental properties in Cameroon. Upload your property for free.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+</head>
+<body>
+    <header class="glass-nav">
+        <nav class="container">
+            <div class="logo">
+                <span class="logo-icon">🏠</span>
+                <span class="logo-text">domaaf</span>
+            </div>
+            <div class="nav-actions">
+                <button id="search-btn" class="btn-icon">🔍</button>
+                <button id="upload-btn" class="btn-primary">Post Property</button>
+                <button id="login-btn" class="btn-outline">Login</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero container">
+            <div class="hero-content">
+                <h1>Find Your Perfect Stay in <span class="gradient-text">Cameroon</span></h1>
+                <p>Modern homes, apartments, and studios at your fingertips. Totally free to list, easy to find.</p>
+                
+                <div class="search-bar">
+                    <div class="search-input">
+                        <span>📍</span>
+                        <input type="text" placeholder="Location (Douala, Yaoundé...)">
+                    </div>
+                    <div class="search-input">
+                        <span>🏠</span>
+                        <select>
+                            <option value="">Property Type</option>
+                            <option value="apartment">Apartment</option>
+                            <option value="house">House</option>
+                            <option value="studio">Studio</option>
+                        </select>
+                    </div>
+                    <button class="btn-search">Search Now</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Categories -->
+        <section class="categories container">
+            <div class="category-pill active">All</div>
+            <div class="category-pill">Apartments</div>
+            <div class="category-pill">Studios</div>
+            <div class="category-pill">Villas</div>
+            <div class="category-pill">Rooms</div>
+        </section>
+
+        <!-- Properties Grid -->
+        <section class="properties container">
+            <div class="section-header">
+                <h2>Featured Properties</h2>
+                <div class="badge-gold">Premium Listings</div>
+            </div>
+            
+            <div id="properties-grid" class="grid">
+                <!-- Skeleton Loading or Placeholder -->
+                <div class="property-card loading"></div>
+                <div class="property-card loading"></div>
+                <div class="property-card loading"></div>
+            </div>
+        </section>
+
+        <!-- Business Tiers Section -->
+        <section class="business-tiers container">
+            <div class="tier-card gold">
+                <h3>Gold</h3>
+                <p>Stay on top for 7 days</p>
+                <span class="price">Free Trial</span>
+            </div>
+            <div class="tier-card platinum">
+                <h3>Platinum</h3>
+                <p>Maximum visibility</p>
+                <span class="price">Best Value</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="modal hidden">
+        <div class="modal-content glass">
+            <span class="close-modal">&times;</span>
+            <h2>List Your Property</h2>
+            <form id="property-form">
+                <input type="text" placeholder="Title (e.g. Modern Apartment in Bonapriso)" required>
+                <textarea placeholder="Description" required></textarea>
+                <input type="number" placeholder="Price (XAF / Month)" required>
+                
+                <div class="file-upload">
+                    <label for="image-input" class="file-label">
+                        <span>📸 Upload Image (Auto-Shrink to 10KB)</span>
+                        <input type="file" id="image-input" accept="image/*">
+                    </label>
+                    <div id="image-preview"></div>
+                </div>
+
+                <div class="file-upload">
+                    <label for="video-input" class="file-label">
+                        <span>🎥 Upload Video (Max 5s)</span>
+                        <input type="file" id="video-input" accept="video/*">
+                    </label>
+                    <div id="video-preview"></div>
+                </div>
+
+                <div class="subscription-choice">
+                    <label>Choose Plan:</label>
+                    <select id="plan-choice">
+                        <option value="free">Free (Standard)</option>
+                        <option value="silver">Silver</option>
+                        <option value="gold">Gold</option>
+                        <option value="platinum">Platinum</option>
+                        <option value="diamond">Diamond</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary w-full">Submit Listing</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-content glass">
+            <span class="close-modal">&times;</span>
+            <h2>Welcome Back</h2>
+            <p>Login with your email to manage listings</p>
+            <form id="login-form">
+                <input type="email" placeholder="Email Address" required>
+                <button type="submit" class="btn-primary w-full">Continue</button>
+                <div class="divider"><span>OR</span></div>
+                <button type="button" class="btn-google w-full">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google">
+                    Login with Google
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Domaaf Cameroon. Connecting Owners & Renters.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 // Domaaf App Logic
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyuWN8N3taKjpby78tbUPuh9Sg1Sj7befH6u2R1Y-Wkd0OTBLWTkg2mGgLQuXdK/exec";
+const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+const WEB_APP_URL = `${API_BASE_URL}/api/properties`;
 
 document.addEventListener('DOMContentLoaded', () => {
     initModals();

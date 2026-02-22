@@ -1,53 +1,78 @@
-# 🏠 Domaaf - Premium Cameroon Rentals
+# 🚀 DOMAAF App - Serious Setup
 
-Domaaf is a high-performance, $0-cost property rental platform. It uses a serverless architecture with Google Sheets as the database and Google Drive as media storage.
-
-## 🚀 Key Features
-- **Modern Premium Design:** Built with Outfit font, glassmorphism, and smooth animations.
-- **Smart Compression:**
-  - Pictures are auto-shrunk to **~10-15 KB** using HTML5 Canvas.
-  - Videos are limited to **5 seconds** and **5 MB**.
-- **Serverless Backend:** No hosting costs (GitHub Pages + Google Apps Script).
-- **Android Ready:** Valid PWA (Progressive Web App) that can be installed on Android.
-- **Monetization Support:** Built-in business tiers (Gold, Silver, Platinum, Diamond) that prioritize listings.
+Welcome to your new robust application architecture! This project is now **decoupled**, meaning the different parts (Database, Logic, and Display) are separated. This makes it faster, safer, and easier to grow.
 
 ---
 
-## 🛠️ Setup Instructions (Crucial)
+## 🧐 Layman's Terms: What are these?
 
-To make the "Post Property" feature work, follow these steps:
+If you aren't a coder, here is what we just built for you:
 
-### 1. Google Drive & Sheet Setup
-1. Create a new **Google Sheet**. 
-2. Add these headers to the first row of a tab named `Properties`:
-   `Timestamp | ID | Title | Description | Price | Type | Plan | ImageURL | VideoURL | Email | Status`
-3. Create a folder in your **Google Drive** named `Domaaf_Media`.
-4. Copy the **Folder ID** (the long string in the URL when you are inside the folder).
-
-### 2. Apps Script Deployment
-1. In your Google Sheet, go to **Extensions > Apps Script**.
-2. Delete any code there and paste the contents of `backend.gs` (provided in this repo).
-3. Replace `YOUR_GOOGLE_DRIVE_FOLDER_ID_HERE` with the Folder ID from step 1.4.
-4. Click **Deploy > New Deployment**.
-5. Select type: **Web App**.
-6. Set "Execute as": **Me**.
-7. Set "Who has access": **Anyone**.
-8. Click **Deploy**, authorize permissions, and **COPY the Web App URL**.
-
-### 3. Connect Frontend
-1. Open `script.js`.
-2. Replace `YOUR_DEPLOYED_APPS_SCRIPT_URL_HERE` (line 2) with the URL you copied in the previous step.
+1.  **Docker (The Container)**: Imagine a lunchbox that contains everything a specific part of your app needs to run. No matter whose computer it's on, it works the same way because it's in its "container."
+2.  **Postgres (The Database)**: This is your digital filing cabinet. Instead of a messy spreadsheet, this is a professional system meant to hold millions of records safely.
+3.  **Worker / API (The Brain)**: This is the "manager." When a user clicks a button on your app, the Brain (API) decides what to do, talks to the Database, and sends back the result.
+4.  **Frontend / PWA (The Face)**: This is what you see on your phone or computer. A **PWA** (Progressive Web App) means it can be "Installed" on your Android home screen just like a regular app, but it's built with web technology.
+5.  **Google Drive (The Warehouse)**: Since images and videos are "heavy," we keep them in Google Drive. Our "Brain" (API) handles the heavy lifting of moving files there.
+6.  **Decoupling**: This is like having a car where you can swap the engine without changing the seats. If you want to change your database later, you can do it without rebuilding the whole app.
 
 ---
 
-## 📦 Deployment to GitHub Pages
-1. Push this code to a GitHub repository.
-2. Go to **Settings > Pages**.
-3. Select the `main` branch and `/root` folder.
-4. Your site will be live at `https://your-username.github.io/domaaf/`.
+## 🛠️ How to Start (The "Magic" Command)
 
-## 📱 How to Install on Android
-1. Open the URL on Chrome (Android).
-2. Tap the three dots (menu).
-3. Tap **"Install App"** or **"Add to Home Screen"**.
-4. Domaaf will now look and behave like a native Android app!
+You only need **Docker Desktop** installed.
+
+1.  Open your terminal (PowerShell or Command Prompt).
+2.  Navigate to this folder.
+3.  Run this command:
+    ```bash
+    docker-compose up --build -d
+    ```
+4.  **Your app is now live!**
+    -   **Website**: [http://localhost](http://localhost)
+    -   **Brain (API)**: [http://localhost:5000](http://localhost:5000)
+    -   **Database**: Port 5432
+
+---
+
+## 📂 Project Structure
+
+-   `/backend`: The "Brain" (Node.js API).
+-   `/frontend`: The "Face" (HTML/CSS/JS/PWA).
+-   `/docker-compose.yml`: The "Conductor" that starts everything.
+
+---
+
+## ☁️ Integrating Google Drive & Login
+
+To make Google Drive and Google Login work, follow these steps:
+
+### 1. Google Drive (Storage)
+1.  Go to [Google Cloud Console](https://console.cloud.google.com/).
+2.  Create a Project and enable **Google Drive API**.
+3.  Create a **Service Account** and download the `JSON` key.
+4.  Rename it to `google-credentials.json` and put it inside the `/backend` folder.
+5.  Share your Google Drive Folder with the email address of that Service Account.
+
+### 2. Google Login (Authentication)
+1.  In Cloud Console, go to **APIs & Services > Credentials**.
+2.  Create an **OAuth 2.0 Client ID**.
+3.  Set the **Authorized Redirect URIs** to `http://localhost:5000/auth/google/callback`.
+4.  Add the Client ID to your `.env` file (see below).
+
+---
+
+## 🔑 Environment Variables
+Create a file named `.env` in the root folder to customize your passwords:
+```env
+DB_USER=postgres
+DB_PASSWORD=your_secure_password
+DB_NAME=domaaf
+```
+
+---
+
+## 📱 Mobile Installation (Android)
+1.  Open Chrome on your Android phone.
+2.  Type in your computer's IP address (e.g., `http://192.168.1.10`).
+3.  Tap the **Three Dots (Menu)** and select **"Install App"** or **"Add to Home Screen"**.
+4.  Boom! You have a native-feeling app on your phone.

@@ -11,11 +11,15 @@
  * 6. Deploy as "Web App" -> "Anyone" has access.
  */
 
-const FOLDER_ID = "YOUR_GOOGLE_DRIVE_FOLDER_ID_HERE";
+const FOLDER_ID = "1cuU88rPBjtJQVzXSH-mg9uQaPjghDUF2";
 
 function doGet(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Properties");
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (!spreadsheet) throw new Error("Script not bound to a Sheet.");
+    const sheet = spreadsheet.getSheetByName("Properties");
+    if (!sheet) throw new Error("Sheet 'Properties' not found.");
+    
     const data = sheet.getDataRange().getValues();
     const headers = data.shift();
     
@@ -25,7 +29,6 @@ function doGet(e) {
       return obj;
     });
     
-    // Sort by Tier (Diamond > Platinum > Gold > Silver > Free)
     const tierOrder = { "Diamond": 5, "Platinum": 4, "Gold": 3, "Silver": 2, "Free": 1 };
     properties.sort((a,b) => (tierOrder[b.plan] || 0) - (tierOrder[a.plan] || 0));
 
@@ -39,23 +42,27 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    const rawContent = e.postData.contents;
-    console.log("Raw Post Data:", rawContent.substring(0, 100)); // Log for debugging
-    
-    const params = JSON.parse(rawContent);
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Properties");
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (!spreadsheet) throw new Error("Script not bound to a Sheet.");
+    const sheet = spreadsheet.getSheetByName("Properties");
+    if (!sheet) throw new Error("Sheet 'Properties' not found.");
+
+    const params = JSON.parse(e.postData.contents);
+    console.log("doPost received params:", Object.keys(params));
     
     let imageUrl = "";
     let videoUrl = "";
 
-    // Handle Image Upload
     if (params.image && params.image.startsWith("data:image")) {
+      console.log("Uploading image...");
       imageUrl = uploadFile(params.image, params.title + "_img");
     }
-
-    // Handle Video Upload
-    if (params.video && params.video.startsWith("data:video")) {
-      videoUrl = uploadFile(params.video, params.title + "_vid");
+    
+    // Check for both 'video' and 'image' used as video key for backwards compatibility
+    const videoData = params.video || (params.type === 'vid' ? params.image : null);
+    if (videoData && videoData.startsWith("data:video")) {
+      console.log("Uploading video...");
+      videoUrl = uploadFile(videoData, params.title + "_vid");
     }
 
     sheet.appendRow([
@@ -69,30 +76,41 @@ function doPost(e) {
       imageUrl,
       videoUrl,
       params.userEmail || "anonymous",
-      "pending" // Status
+      "pending"
     ]);
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Listing posted!" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "success", 
+      message: "Listing posted!",
+      imageUrl: imageUrl,
+      videoUrl: videoUrl
+    })).setMimeType(ContentService.MimeType.JSON);
       
   } catch (err) {
-    console.error("POST Error:", err.toString());
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function uploadFile(base64Data, filename) {
-  if (typeof base64Data !== 'string' || !base64Data.includes(',')) {
-    console.error("Invalid base64 data passed to uploadFile");
-    return "";
+  try {
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    if (!folder) throw new Error("Target folder not found.");
+    
+    const contentType = base64Data.substring(5, base64Data.indexOf(';'));
+    const bytes = Utilities.base64Decode(base64Data.split(',')[1]);
+    const blob = Utilities.newBlob(bytes, contentType, filename);
+    const file = folder.createFile(blob);
+    
+    // Set explicit permissions
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    // Return a direct embed link
+    const fileId = file.getId();
+    console.log("File created with ID:", fileId);
+    return "https://drive.google.com/thumbnail?sz=w800&id=" + fileId;
+  } catch (e) {
+    console.error("Upload error in backend.gs:", e.toString());
+    throw e;
   }
-  
-  const folder = DriveApp.getFolderById(FOLDER_ID);
-  const contentType = base64Data.substring(5, base64Data.indexOf(';'));
-  const bytes = Utilities.base64Decode(base64Data.split(',')[1]);
-  const blob = Utilities.newBlob(bytes, contentType, filename);
-  const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
 }

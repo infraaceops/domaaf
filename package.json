@@ -1,0 +1,19 @@
+{
+  "name": "domaaf",
+  "version": "1.0.0",
+  "description": "Welcome to your new robust application architecture! This project is now **decoupled**, meaning the different parts (Database, Logic, and Display) are separated. This makes it faster, safer, and easier to grow.",
+  "main": "register.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/core": "^8.3.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.1"
+  }
+}

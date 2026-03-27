@@ -20,17 +20,72 @@
     <meta name="theme-color" content="#10b981">
 </head>
 
-<body>
+<body class="home-page">
     <header class="glass-nav">
         <nav class="container">
             <div class="logo">
-                <span class="logo-icon">🏠</span>
+                <span class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                </span>
                 <span class="logo-text">domaaf</span>
             </div>
             <div class="nav-actions">
-                <button id="search-btn" class="btn-icon">🔍</button>
+                <button id="search-btn" class="btn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                    </svg>
+                </button>
                 <button id="upload-btn" class="btn-primary">Post Property</button>
-                <button id="login-btn" class="btn-outline">Login</button>
+                <div id="auth-buttons" style="display:flex; gap: 8px; align-items: center;">
+                    <button id="signup-btn" class="btn-primary">Sign Up</button>
+                    <button id="login-btn" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: white; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 0.9rem; box-shadow: 0 0 14px rgba(245,158,11,0.4); transition: all 0.3s ease;"
+                       
+                       >Sign In</button>
+                </div>
+                <div id="user-profile" class="user-profile hidden">
+                    <div class="avatar" id="user-avatar">?</div>
+                    <div class="profile-dropdown glass">
+
+                        <!-- User Info Header -->
+                        <div class="dropdown-header">
+                            <div class="dropdown-avatar" id="dropdown-avatar-mini">?</div>
+                            <div>
+                                <p id="user-display-name" class="dropdown-name">User Name</p>
+                                <p id="user-display-email" class="dropdown-email">email@example.com</p>
+                            </div>
+                        </div>
+
+                        <div class="dropdown-divider"></div>
+
+                        <!-- Menu Items -->
+                        <a href="index.html" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            <span>Home</span>
+                        </a>
+                        <a href="profile.html" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span>My Profile</span>
+                        </a>
+                        <a href="dashboard.html" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            <span>My Dashboard</span>
+                        </a>
+
+                        <div class="dropdown-divider"></div>
+
+                        <!-- Logout -->
+                        <button id="logout-btn" class="dropdown-item dropdown-logout" onclick="handleSignOut()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </nav>
     </header>
@@ -38,36 +93,65 @@
     <main>
         <!-- Hero Section -->
         <section class="hero container">
-            <div class="hero-content">
-                <h1>Find Your Perfect Stay in <span class="gradient-text">Cameroon</span></h1>
-                <p>Modern homes, apartments, and studios at your fingertips. Totally free to list, easy to find.</p>
+                <div class="hero-title-container">
+                    <h1>F<span class="stylish-search-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>nd Your Perfect Stay in <span class="gradient-text">Cameroon</span></h1>
+                </div>
+                <p>Modern homes, apartments, and studios at your fingertips. Totally free to list, easy to find. All in one place</p>
 
-                <div class="search-bar">
-                    <div class="search-input">
-                        <span>📍</span>
-                        <input type="text" placeholder="Location (Douala, Yaoundé...)">
+                <div class="filter-wrapper">
+                    <div class="filter-container">
+                        <div class="filter-segment" id="location-segment">
+                            <div class="filter-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                                    <circle cx="12" cy="10" r="3" />
+                                </svg>
+                            </div>
+                            <div class="filter-content">
+                                <label>Location</label>
+                                <input type="text" id="search-location" placeholder="Where are you going?" autocomplete="off">
+                            </div>
+                        </div>
+                        
+                        <div class="filter-divider"></div>
+                        
+                        <div class="filter-segment" id="type-segment">
+                            <div class="filter-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                    <polyline points="9 22 9 12 15 12 15 22" />
+                                </svg>
+                            </div>
+                            <div class="filter-content">
+                                <label>Property Type</label>
+                                <select id="search-type">
+                                    <option value="">All Types</option>
+                                    <option value="Apartment">Apartment</option>
+                                    <option value="Studio">Studio</option>
+                                    <option value="Villa">Villa</option>
+                                    <option value="Room">Room</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button id="search-now-btn" class="filter-submit-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                            </svg>
+                            <span>Search</span>
+                        </button>
                     </div>
-                    <div class="search-input">
-                        <span>🏠</span>
-                        <select>
-                            <option value="">Property Type</option>
-                            <option value="apartment">Apartment</option>
-                            <option value="house">House</option>
-                            <option value="studio">Studio</option>
-                        </select>
-                    </div>
-                    <button class="btn-search">Search Now</button>
                 </div>
             </div>
         </section>
 
         <!-- Categories -->
         <section class="categories container">
-            <div class="category-pill active">All</div>
-            <div class="category-pill">Apartments</div>
-            <div class="category-pill">Studios</div>
-            <div class="category-pill">Villas</div>
-            <div class="category-pill">Rooms</div>
+            <div class="category-pill active" data-category="All">All</div>
+            <div class="category-pill" data-category="Apartment">Apartments</div>
+            <div class="category-pill" data-category="Studio">Studios</div>
+            <div class="category-pill" data-category="Villa">Villas</div>
+            <div class="category-pill" data-category="Room">Rooms</div>
         </section>
 
         <!-- Properties Grid -->
@@ -86,78 +170,301 @@
         </section>
 
         <!-- Business Tiers Section -->
-        <section class="business-tiers container">
+        <div class="container" style="margin-top: 60px; display: flex; flex-direction: column; align-items: center; text-align: center;">
+            <div class="badge-gold" style="margin-bottom: 15px;">Stand Out</div>
+            <h2 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 10px;">Premium Plans</h2>
+            <p style="color: var(--text-muted); font-size: 1.1rem; max-width: 500px; margin-bottom: 0;">Boost your property's visibility and reach more renters instantly.</p>
+        </div>
+        <section class="business-tiers container" style="padding-top: 40px;">
+            <div class="tier-card free">
+                <div class="tier-badge">Standard</div>
+                <h3>Free Trial</h3>
+                <p>Basic use for all users</p>
+                <span class="price">Free</span>
+            </div>
             <div class="tier-card gold">
+                <div class="tier-badge">Popular</div>
                 <h3>Gold</h3>
                 <p>Stay on top for 7 days</p>
-                <span class="price">Free Trial</span>
+                <span class="price">XAF 11,999<small>/mo</small></span>
             </div>
             <div class="tier-card platinum">
+                <div class="tier-badge">Premium</div>
                 <h3>Platinum</h3>
-                <p>Maximum visibility</p>
-                <span class="price">Best Value</span>
+                <p>Maximum boost and visibility</p>
+                <span class="price">XAF 24,999<small>/mo</small></span>
             </div>
         </section>
+
+        <!-- Multi-page structure: Sections moved to dashboard.html and profile.html -->
     </main>
+
+    <!-- Property Detail Panel — centered horizontal modal -->
+    <div id="property-panel-backdrop" class="panel-backdrop hidden"></div>
+    <div id="property-detail-panel" class="property-panel glass-premium hidden">
+
+        <!-- LEFT: Image Slider / Video -->
+        <div class="panel-image-wrap">
+            <div id="slider-container" class="slider-container">
+                <div id="slider-wrapper" class="slider-wrapper">
+                    <!-- Slides will be injected here -->
+                </div>
+                <button class="slider-nav prev" id="slider-prev" onclick="moveSlide(-1)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="slider-nav next" id="slider-next" onclick="moveSlide(1)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <div id="slider-dots" class="slider-dots"></div>
+            </div>
+            
+            <div id="panel-video-wrap" class="panel-video-wrap hidden">
+                <video id="panel-video" controls class="panel-video" playsinline></video>
+            </div>
+        </div>
+
+        <!-- RIGHT: Details -->
+        <div class="panel-body" style="padding: 0;">
+            <!-- Sticky header -->
+            <div class="panel-header" style="position: sticky; top: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); z-index: 10; padding: 24px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="panel-label" id="panel-type-badge" style="background: var(--primary); padding: 5px 12px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase;">Property</span>
+                    <div id="panel-plan-badge" class="plan-badge"></div>
+                </div>
+                <button class="panel-close-btn" id="panel-close-btn" aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:18px;height:18px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <!-- Scrollable content -->
+            <div class="panel-inner" style="padding: 30px;">
+                <h2 id="panel-title" class="panel-title" style="font-size: 1.8rem; font-weight: 700; margin-bottom: 15px; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;"></h2>
+
+                <div class="panel-price-row" style="display: flex; align-items: baseline; gap: 5px; margin-bottom: 25px; background: rgba(16, 185, 129, 0.05); padding: 15px 20px; border-radius: 14px; border: 1px solid rgba(16, 185, 129, 0.1);">
+                    <span id="panel-price" class="panel-price" style="font-size: 1.8rem; font-weight: 800; color: var(--primary);"></span>
+                    <span class="panel-price-period" style="color: var(--text-muted); font-size: 0.95rem;">/ month</span>
+                </div>
+
+                <div class="panel-divider" style="height: 1px; background: rgba(255,255,255,0.05); margin: 25px 0;"></div>
+                <p id="panel-description" class="panel-description" style="line-height: 1.7; color: #cbd5e1; font-size: 1.05rem; margin-bottom: 25px;"></p>
+                <div class="panel-divider" style="height: 1px; background: rgba(255,255,255,0.05); margin: 25px 0;"></div>
+
+                <div class="panel-section">
+                    <h4 class="panel-section-title" style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--primary); margin-bottom: 20px;">Owner Contact Information</h4>
+                    <div class="panel-contact-grid" id="panel-contact-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"></div>
+                </div>
+
+                <div class="panel-divider" style="height: 1px; background: rgba(255,255,255,0.05); margin: 25px 0;"></div>
+                <div class="panel-meta-grid" id="panel-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px;"></div>
+
+                <div class="panel-actions" style="margin-top: 40px; display: flex; gap: 15px;">
+                    <a id="panel-whatsapp-btn" href="#" target="_blank" class="panel-btn panel-btn-wa hidden" style="flex: 1.2; justify-content: center; height: 55px; border-radius: 16px; font-weight: 700;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;margin-right:8px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.5 2A9.5 9.5 0 0 0 2 11.5c0 1.68.44 3.35 1.27 4.82L2 22l5.83-1.25A9.5 9.5 0 1 0 11.5 2zm0 17.5a8 8 0 0 1-4.08-1.12l-.29-.17-3.02.65.66-2.93-.19-.3A8 8 0 1 1 19.5 11.5a8.01 8.01 0 0 1-8 8z"/></svg>
+                        WhatsApp
+                    </a>
+                    <a id="panel-email-btn" href="#" class="panel-btn panel-btn-email hidden" style="flex: 1; justify-content: center; height: 55px; border-radius: 16px; font-weight: 700;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;margin-right:8px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        Email
+                    </a>
+                    <a id="panel-call-btn" href="#" class="panel-btn panel-btn-call hidden" style="flex: 1; justify-content: center; height: 55px; border-radius: 16px; font-weight: 700;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;margin-right:8px;"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                        Call
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Plan Detail Panel -->
+    <div id="plan-panel-backdrop" class="panel-backdrop hidden"></div>
+    <div id="plan-detail-panel" class="property-panel plan-panel glass-premium hidden">
+        <div class="panel-body">
+            <div class="panel-header">
+                <button class="panel-close-btn" id="plan-panel-close-btn" aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:20px;height:20px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <span class="panel-label">Subscription Plan</span>
+            </div>
+
+            <div class="panel-inner">
+                <div class="panel-title-row">
+                    <h2 id="plan-panel-title" class="panel-title">Plan Name</h2>
+                </div>
+
+                <div class="panel-price-row">
+                    <span id="plan-panel-price" class="panel-price">Price</span>
+                    <span id="plan-panel-period" class="panel-price-period">/ month</span>
+                </div>
+
+                <div class="panel-divider"></div>
+                <p id="plan-panel-description" class="panel-description">Plan description goes here.</p>
+                <div class="panel-divider"></div>
+
+                <div class="panel-section">
+                    <h4 class="panel-section-title">What's Included</h4>
+                    <ul class="plan-features-list" id="plan-features-list">
+                        <!-- Features will be injected here -->
+                    </ul>
+                </div>
+
+                <div class="panel-actions" style="margin-top: 24px;">
+                    <button id="plan-select-btn" class="btn-primary w-full">Select Plan</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Upload Modal -->
     <div id="upload-modal" class="modal hidden">
-        <div class="modal-content glass">
-            <span class="close-modal">&times;</span>
-            <h2>List Your Property</h2>
-            <form id="property-form">
-                <input type="text" placeholder="Title (e.g. Modern Apartment in Bonapriso)" required>
-                <textarea placeholder="Description" required></textarea>
-                <input type="number" placeholder="Price (XAF / Month)" required>
+        <div class="modal-content glass-premium anim-premium-pop" id="upload-modal-content" style="max-width: 850px; margin: auto; position: relative;">
+            <!-- Modal Header -->
+            <div class="modal-header-premium">
+                <div>
+                    <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.5px;">List Your Property</h2>
+                    <p style="margin: 4px 0 0; color: var(--text-muted); font-size: 0.9rem;">Reach thousands of potential renters in Cameroon</p>
+                </div>
+                <button class="close-modal" aria-label="Close">&times;</button>
+            </div>
 
-                <div class="file-upload">
-                    <label for="image-input" class="file-label">
-                        <span>📸 Upload Image (Auto-Shrink to 10KB)</span>
-                        <input type="file" id="image-input" accept="image/*">
-                    </label>
-                    <div id="image-preview"></div>
+            <form id="property-form" class="modal-body-premium">
+                <!-- Modal Drag Handle (Simplified/Premium) -->
+                <div id="modal-drag-handle" class="modal-drag-handle" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; padding: 10px; cursor: grab; opacity: 0.3; transition: opacity 0.3s;">
+                    <div style="height: 4px; background: white; border-radius: 2px;"></div>
                 </div>
 
-                <div class="file-upload">
-                    <label for="video-input" class="file-label">
-                        <span>🎥 Upload Video (Max 5s)</span>
-                        <input type="file" id="video-input" accept="video/*">
-                    </label>
-                    <div id="video-preview"></div>
+                <div class="form-grid-premium">
+                    <!-- Left Column: Details -->
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <article class="form-group">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Property Title</label>
+                            <input type="text" placeholder="e.g. Modern Villa with Pool" class="input-premium" required>
+                        </article>
+                        
+                        <article class="form-group">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Description</label>
+                            <textarea placeholder="Describe features, amenities, location..." rows="6" class="input-premium" style="resize: none;" required></textarea>
+                        </article>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <article class="form-group">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Price (XAF/mo)</label>
+                                <input type="number" placeholder="50,000" class="input-premium" required>
+                            </article>
+                            <article class="form-group">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Type</label>
+                                <select id="property-type" class="input-premium" required>
+                                    <option value="Apartment">Apartment</option>
+                                    <option value="Studio">Studio</option>
+                                    <option value="Villa">Villa</option>
+                                    <option value="Room">Room</option>
+                                </select>
+                            </article>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Media & Contact -->
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <article class="form-group">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Media Upload</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+                                <label for="image-input" class="file-label" style="padding: 14px; background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+                                    <span style="font-weight: 600;">📸 Photos</span>
+                                    <span style="font-size: 0.65rem; color: var(--primary); font-weight: 500;">(Rec: 1200x800)</span>
+                                    <input type="file" id="image-input" accept="image/*" hidden>
+                                </label>
+                                <label for="video-input" class="file-label" style="padding: 14px; background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+                                    <span style="font-weight: 600;">🎥 Video</span>
+                                    <span style="font-size: 0.65rem; color: #3b82f6; font-weight: 500;">(Rec: 1080p, < 5s)</span>
+                                    <input type="file" id="video-input" accept="video/*" hidden>
+                                </label>
+                            </div>
+                            <div id="image-preview" class="preview-grid" style="margin-top: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;"></div>
+                            <div id="video-preview" style="margin-top: 8px;"></div>
+                        </article>
+
+                        <article class="form-group">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Visibility Plan</label>
+                            <select id="plan-choice" class="input-premium">
+                                <option value="free">Standard (Free)</option>
+                                <option value="gold">Gold Boost</option>
+                                <option value="platinum">Platinum Featured</option>
+                            </select>
+                        </article>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <article class="form-group">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">Email</label>
+                                <input type="email" id="contact-email" placeholder="Contact Email" class="input-premium">
+                            </article>
+                            <article class="form-group">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">Phone</label>
+                                <input type="tel" id="contact-phone" placeholder="WhatsApp Number" class="input-premium">
+                            </article>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="subscription-choice">
-                    <label>Choose Plan:</label>
-                    <select id="plan-choice">
-                        <option value="free">Free (Standard)</option>
-                        <option value="silver">Silver</option>
-                        <option value="gold">Gold</option>
-                        <option value="platinum">Platinum</option>
-                        <option value="diamond">Diamond</option>
-                    </select>
+                <div class="modal-footer-premium" style="margin: 24px -40px -40px; padding: 32px 40px; border-radius: 0 0 28px 28px;">
+                    <button type="submit" id="submit-listing-btn" class="btn-primary w-full" style="height: 54px; font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);">
+                        <span class="btn-text">Submit Listing</span>
+                        <svg class="btn-loader hidden spin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+                    </button>
                 </div>
-
-                <button type="submit" class="btn-primary w-full">Submit Listing</button>
             </form>
         </div>
     </div>
 
     <!-- Login Modal -->
     <div id="login-modal" class="modal hidden">
-        <div class="modal-content glass">
-            <span class="close-modal">&times;</span>
-            <h2>Welcome Back</h2>
-            <p>Login with your email to manage listings</p>
-            <form id="login-form">
-                <input type="email" placeholder="Email Address" required>
-                <button type="submit" class="btn-primary w-full">Continue</button>
-                <div class="divider"><span>OR</span></div>
-                <button type="button" class="btn-google w-full">
-                    <img src="https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png" alt="Google"
-                        style="width:20px; vertical-align:middle; margin-right:8px;">
-                    Login with Google
-                </button>
-            </form>
+        <div class="modal-content glass-premium anim-premium-pop" style="max-width: 420px; margin: auto; position: relative;">
+            <div class="modal-header-premium">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <span style="font-weight:700; font-size:1.1rem; letter-spacing:-0.5px; color:white;">domaaf</span>
+                </div>
+                <button class="close-modal" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="modal-body-premium">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h2 id="auth-modal-title" style="font-size: 1.6rem; font-weight: 800; color: white; margin: 0 0 8px;">Welcome Back</h2>
+                    <p id="auth-modal-desc" style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">Sign in to your account to continue</p>
+                </div>
+
+                <div id="auth-error-msg" style="color: #ef4444; font-size: 0.85rem; text-align: center; margin-bottom: 15px; display: none; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 12px; border: 1px solid rgba(239,68,68,0.2);"></div>
+                
+                <form id="login-form" style="display:flex; flex-direction:column; gap: 18px;">
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label for="auth-email" style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Email Address</label>
+                        <input type="email" id="auth-email" placeholder="you@example.com" class="input-premium" required>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label for="auth-password" style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Password</label>
+                        <input type="password" id="auth-password" placeholder="Enter your password" class="input-premium" required>
+                    </div>
+
+                    <button type="submit" id="auth-submit-btn" class="btn-primary w-full" style="margin-top: 8px; height: 52px; font-size: 1rem; font-weight: 700;">Sign In</button>
+
+                    <p class="auth-toggle-msg" style="text-align:center; font-size:0.9rem; color:var(--text-muted); margin: 0;">
+                        Don't have an account? <a href="#" id="toggle-auth" style="color: var(--primary); font-weight: 700;">Sign Up</a>
+                    </p>
+
+                    <div class="divider" style="margin: 15px 0;"><span>or continue with</span></div>
+
+                    <button type="button" class="btn-google w-full" style="display:flex; align-items:center; justify-content:center; gap:12px; height: 52px; font-weight: 600; font-size:0.95rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; transition: all 0.3s ease;">
+                        <svg viewBox="0 0 48 48" style="width:20px;height:20px;flex-shrink:0;">
+                            <path fill="#EA4335" d="M24 9.5c3.5 0 6.5 1.2 8.9 3.2l6.6-6.6C35.6 2.5 30.1 0 24 0 14.7 0 6.7 5.4 2.9 13.3l7.7 6A14.5 14.5 0 0 1 24 9.5z"/>
+                            <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 6.9-10 6.9-17z"/>
+                            <path fill="#FBBC05" d="M10.6 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.7-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l8-6z"/>
+                            <path fill="#34A853" d="M24 48c6.1 0 11.2-2 14.9-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.4 2.2a14.5 14.5 0 0 1-13.4-9.2l-8 6C6.7 42.6 14.7 48 24 48z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -167,7 +474,21 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"
+        onerror="console.error('Failed to load Firebase App SDK')"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"
+        onerror="console.error('Failed to load Firebase Auth SDK')"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"
+        onerror="console.error('Failed to load Firebase Firestore SDK')"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"
+        onerror="console.error('Failed to load Firebase Storage SDK')"></script>
+
+    <div id="toast-container" class="toast-container"></div>
+    <!-- Config & App Logic -->
+    <script src="firebase-config.js" onerror="console.error('Failed to load firebase-config.js')"></script>
+    <script src="script.js" onerror="console.error('Failed to load script.js')"></script>
 </body>
 
 </html>

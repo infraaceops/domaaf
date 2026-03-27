@@ -2,9 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "jazlan-work" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "jazlan-work" ]
 
 jobs:
   build:

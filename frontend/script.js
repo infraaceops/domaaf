@@ -145,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initFilters();
         initFormSubmission();
         initModalDrag();
+        initCustomDropdown();
 
         // Page-specific initialization
         if (page === "index.html" || page === "" || !page.includes('.')) {
@@ -175,6 +176,59 @@ async function registerSW() {
     }
 }
 
+// --- Custom Property Type Dropdown (Search Panel) ---
+function initCustomDropdown() {
+    const wrap = document.getElementById('type-custom-select');
+    if (!wrap) return;
+
+    const trigger = document.getElementById('type-select-trigger');
+    const optionsList = document.getElementById('type-select-options');
+    const label = document.getElementById('type-select-label');
+    const hiddenSelect = document.getElementById('search-type');
+    const options = optionsList ? optionsList.querySelectorAll('.custom-select-option') : [];
+
+    if (!trigger || !optionsList) return;
+
+    // Toggle open/close on trigger click
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = wrap.classList.toggle('open');
+        optionsList.style.display = isOpen ? 'block' : '';
+    });
+
+    // Option selection
+    options.forEach(opt => {
+        opt.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const value = opt.dataset.value;
+            const text = opt.textContent.trim();
+
+            // Update label (strip emoji, keep text clean)
+            if (label) label.textContent = value ? text.replace(/^[^\w]+/, '').trim() : 'All Types';
+
+            // Update hidden native select so filters still work
+            if (hiddenSelect) {
+                hiddenSelect.value = value;
+                hiddenSelect.dispatchEvent(new Event('change'));
+            }
+
+            // Mark selected
+            options.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+
+            // Close dropdown
+            wrap.classList.remove('open');
+        });
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target)) {
+            wrap.classList.remove('open');
+        }
+    });
+}
+
 // --- Form Submission ---
 function initFormSubmission() {
     const form = document.getElementById('property-form');
@@ -189,14 +243,12 @@ function initFormSubmission() {
         const desc = form.querySelector('textarea')?.value?.trim();
         const price = form.querySelector('input[type="number"]')?.value?.trim();
         const type = document.getElementById('property-type')?.value;
+        const location = document.getElementById('property-location')?.value?.trim();
         const images = form.querySelectorAll('#image-preview img');
         const email = document.getElementById('contact-email')?.value?.trim();
         const phone = document.getElementById('contact-phone')?.value?.trim();
 
-        // LOGGING for debug
-        console.log("Validation Check:", { title: !!title, desc: !!desc, price: !!price, type: !!type, imgs: images.length, email: !!email, phone: !!phone });
-
-        const allFilled = title && desc && price && type && images.length > 0;
+        const allFilled = title && desc && price && type && location && images.length > 0;
         const contactOk = !!(email || phone);
 
         const valid = allFilled && contactOk;
@@ -211,12 +263,12 @@ function initFormSubmission() {
         } else {
             submitBtn.style.background = 'rgba(255,255,255,0.05)';
             submitBtn.style.boxShadow = 'none';
-            // Helpful tooltip for user
             let missing = [];
             if (!title) missing.push("Title");
             if (!desc) missing.push("Description");
             if (!price) missing.push("Price");
             if (!type) missing.push("Type");
+            if (!location) missing.push("Location");
             if (!images.length) missing.push("Photo");
             if (!contactOk) missing.push("Contact Info");
             submitBtn.title = "Missing: " + missing.join(", ");
@@ -296,7 +348,7 @@ function initFormSubmission() {
             propertyData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         }
 
-        // Helper to upload via Backend to Google Drive
+        // Helper to upload directly to Google Apps Script (works from any URL/protocol)
         async function uploadMedia(dataUrlOrFile, type) {
             try {
                 let mediaBase64 = dataUrlOrFile;
@@ -310,48 +362,52 @@ function initFormSubmission() {
                     mediaBase64 = await fileToBase64(dataUrlOrFile);
                 }
 
-                // Robust backend URL construction
-                // If we are on a port (like 8082), we want to talk to 5001 on the same host
-                const host = window.location.hostname;
-                const backendUrl = (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0')
-                    ? `http://${host}:5001/api/upload`
-                    : `${window.location.protocol}//${host}:5001/api/upload`;
+                // Upload directly to Google Apps Script (handles base64 -> Google Drive)
+                // This works from any protocol (file://, localhost, production domain)
+                const GAS_URL = 'https://script.google.com/macros/s/AKfycbxrKDzspdVQCaYOJ8CRJzJn77eDlqfVLYdwno8bGpH889X-PCv_YYsruSa4Z0Oa06cNRg/exec';
 
-                console.log(`[UPLOAD] Attempting ${type} upload to: ${backendUrl}`);
+                console.log(`[UPLOAD] Sending ${type} directly to Google Apps Script...`);
 
-                const response = await fetch(backendUrl, {
+                // GAS requires a form/no-cors approach — use no-cors then handle separately
+                // Actually, GAS Web Apps support CORS when deployed with "Anyone" access
+                const payload = {
+                    title: (propertyData.title || 'property').replace(/[^a-zA-Z0-9]/g, '_'),
+                    userEmail: propertyData.userEmail,
+                    type: propertyData.type,
+                    plan: propertyData.plan,
+                };
+                // Attach the right field
+                if (type === 'img') payload.image = mediaBase64;
+                else payload.video = mediaBase64;
+
+                const response = await fetch(GAS_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        media: mediaBase64,
-                        title: propertyData.title ? propertyData.title.replace(/[^a-zA-Z0-9]/g, '_') : 'property',
-                        type: type
-                    })
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain prevents CORS preflight OPTIONS request
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
                     const errText = await response.text();
-                    console.error(`[UPLOAD] Server error: ${response.status} - ${errText}`);
-                    throw new Error(`Upload failed: ${response.status} ${errText}`);
+                    console.error(`[UPLOAD] GAS error: ${response.status} - ${errText}`);
+                    throw new Error(`Upload failed: ${response.status}`);
                 }
 
                 const data = await response.json();
-                const fileUrl = data.imageUrl || data.url;
+                const fileUrl = data.imageUrl || data.videoUrl || data.url;
 
                 if (!fileUrl) {
-                    console.error("[UPLOAD] Server returned no URL in response:", data);
-                    throw new Error("Storage server failed to provide a link.");
+                    console.error('[UPLOAD] GAS returned no URL:', data);
+                    throw new Error('Google Drive upload returned no link.');
                 }
 
-                console.log(`[UPLOAD] Success! Got URL: ${fileUrl}`);
+                console.log(`[UPLOAD] Success! Drive URL: ${fileUrl}`);
                 return fileUrl;
             } catch (err) {
                 console.error(`[UPLOAD] ${type} upload error:`, err);
                 return null;
             }
         }
+
 
         try {
             // 1. Upload Images
@@ -794,8 +850,12 @@ function initModals() {
                     const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
-                    if (!user.emailVerified) {
-                        showThemedErrorPopup("Your email address has not been verified yet. Please check your inbox and complete verification before signing in.");
+                    // Always reload to get the LATEST emailVerified status (prevents stale cache)
+                    await user.reload();
+                    const freshUser = firebase.auth().currentUser;
+
+                    if (!freshUser || !freshUser.emailVerified) {
+                        showThemedErrorPopup("Your email address has not been verified yet. Please check your inbox and click the verification link before signing in.");
                         await firebase.auth().signOut();
                         authSubmitBtn.disabled = false;
                         authSubmitBtn.innerText = "Sign In";
@@ -885,47 +945,39 @@ function initModals() {
                 const db = firebase.firestore();
                 const userRef = db.collection('users').doc(user.uid);
 
+                // Google emails are pre-verified by Google (user.emailVerified is always true for Google OAuth)
+                // This satisfies the verification requirement — the email IS verified
                 if (isNewUser) {
-                    // NEW ACCOUNT: Save with domaafVerified=false, send verification, force logout
+                    // NEW GOOGLE ACCOUNT: Save profile with domaafVerified=true
+                    // Google already verifies the email — user.emailVerified is true
                     await userRef.set({
                         email: user.email,
                         displayName: user.displayName || user.email.split('@')[0],
-                        domaafVerified: false,
+                        domaafVerified: true,
                         provider: 'google',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    try { await user.sendEmailVerification(); } catch (e) { console.warn('Send email failed:', e); }
-
+                    // Show account registered popup (Google email is pre-verified — no email link needed)
                     if (loginModal) loginModal.classList.add('hidden');
-                    showThemedSuccessPopup("Google Account Created! A verification email has been sent. Please verify your email to complete setup.");
-                    setTimeout(() => showVerificationPopup(user.email), 2200);
-                    await firebase.auth().signOut();
+                    showThemedSuccessPopup('Google Account Registered! Your Google email is automatically verified. Welcome to Domaaf!');
+                    setTimeout(() => {
+                        localStorage.setItem('domaaf_auth_hint', 'true');
+                        syncUserProfile(user).catch(console.error);
+                    }, 2500);
 
                 } else {
-                    // EXISTING ACCOUNT: Check OUR custom domaafVerified flag
-                    const doc = await userRef.get();
-                    const data = doc.exists ? doc.data() : null;
+                    // EXISTING GOOGLE ACCOUNT: user.emailVerified is always true — allow login
+                    userRef.update({
+                        domaafVerified: true,
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(console.warn);
 
-                    // Only block if EXPLICITLY set to false (new unverified accounts)
-                    // If field is missing (pre-existing accounts), treat as verified & migrate
-                    const isExplicitlyUnverified = data && data.domaafVerified === false;
-
-                    if (isExplicitlyUnverified) {
-                        // Blocked — explicitly unverified in our system
-                        if (loginModal) loginModal.classList.add('hidden');
-                        showThemedErrorPopup("Your email address has not been verified. Please check your inbox and click the verification link before signing in.");
-                        await firebase.auth().signOut();
-                    } else {
-                        // Verified (or pre-existing account without flag) — allow login
-                        // Auto-stamp domaafVerified:true for migration
-                        if (data && data.domaafVerified === undefined) {
-                            userRef.update({ domaafVerified: true }).catch(console.warn);
-                        }
-                        syncUserProfile(user).catch(console.error);
-                        if (loginModal) loginModal.classList.add('hidden');
-                        showThemedWelcomePopup(user.displayName || user.email.split('@')[0]);
-                    }
+                    localStorage.setItem('domaaf_auth_hint', 'true');
+                    syncUserProfile(user).catch(console.error);
+                    if (loginModal) loginModal.classList.add('hidden');
+                    showThemedWelcomePopup(user.displayName || user.email.split('@')[0]);
                 }
 
             } catch (error) {
@@ -1644,8 +1696,24 @@ function renderGrid(data) {
 }
 
 // --- Property Detail Panel ---
-function openPropertyPanel(idx) {
-    const p = window._propertyList && window._propertyList[idx];
+async function openPropertyPanel(idOrIdx) {
+    let p = null;
+    
+    // Check if it's an index from the loaded list
+    if (typeof idOrIdx === 'number' && window._propertyList && window._propertyList[idOrIdx]) {
+        p = window._propertyList[idOrIdx];
+    } else {
+        // It's a document ID, fetch it from Firestore directly
+        try {
+            const doc = await firebase.firestore().collection('properties').doc(idOrIdx).get();
+            if (doc.exists) {
+                p = { id: doc.id, ...doc.data() };
+            }
+        } catch (err) {
+            console.error("Failed to fetch property details:", err);
+        }
+    }
+
     if (!p) return;
 
     const panel = document.getElementById('property-detail-panel');
@@ -1907,13 +1975,13 @@ function renderDashboardGrid(data) {
         const imageUrl = getValidImageUrl(p.imageUrl);
         return `
         <div class="property-card">
-            <div class="card-img">
+            <div class="card-img" onclick="openPropertyPanel('${p.id}')" style="cursor:pointer;">
                 <img src="${imageUrl}" alt="${p.title}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
                 <span class="card-badge ${p.status === 'published' ? 'badge-published' : 'badge-pending'}">${p.status === 'published' ? 'Published' : 'Approval Pending'}</span>
             </div>
             <div class="card-content">
                 <p style="color:var(--primary); font-size:0.8rem; font-weight:600; text-transform:uppercase;">${p.type || 'Property'}</p>
-                <h3 style="margin: 5px 0; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.title}</h3>
+                <h3 onclick="openPropertyPanel('${p.id}')" style="margin: 5px 0; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor:pointer;">${p.title}</h3>
                 <p class="price" style="color: #10b981; font-weight: 700;">${Number(p.price).toLocaleString()} XAF</p>
                 
                 <div class="card-actions">
@@ -2013,7 +2081,12 @@ async function editProperty(id) {
 
         const submitBtn = document.getElementById('submit-listing-btn');
         if (submitBtn) {
-            submitBtn.innerText = "Update Listing";
+            const btnText = submitBtn.querySelector('.btn-text');
+            if (btnText) {
+                btnText.innerText = "Update Listing";
+            } else {
+                submitBtn.innerText = "Update Listing";
+            }
             submitBtn.style.opacity = '1';
             submitBtn.style.cursor = 'pointer';
             submitBtn.disabled = false;

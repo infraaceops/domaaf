@@ -293,6 +293,34 @@ app.post('/api/properties', async (req, res) => {
     }
 });
 
+// Media Upload Endpoint — called by frontend to upload images/videos to Google Drive
+app.post('/api/upload', async (req, res) => {
+    try {
+        const { media, title, type } = req.body;
+
+        if (!media) {
+            return res.status(400).json({ error: 'No media provided' });
+        }
+
+        const filename = `${(title || 'property').replace(/[^a-zA-Z0-9]/g, '_')}_${type}_${Date.now()}`;
+        console.log(`[UPLOAD] Received ${type} upload request: ${filename}`);
+
+        const uploadedUrl = await uploadToDrive(media, filename, type);
+
+        if (!uploadedUrl) {
+            console.error('[UPLOAD] uploadToDrive returned null/undefined');
+            return res.status(500).json({ error: 'Upload to Google Drive failed. Check GOOGLE_APPS_SCRIPT_URL in .env' });
+        }
+
+        console.log(`[UPLOAD] Success: ${uploadedUrl}`);
+        res.json({ imageUrl: uploadedUrl, url: uploadedUrl });
+    } catch (error) {
+        console.error('[UPLOAD] Route error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 // Admin: Manually resend credentials email (for testing / on-demand use)
 app.post('/api/admin/resend-credentials', async (req, res) => {
     try {

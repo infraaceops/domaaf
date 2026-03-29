@@ -2228,7 +2228,7 @@ input[type="file"] {
         gap: 24px;
     }
 
-    /* Modals & Panels */
+    /* Modals & Panels — Native Android Bottom Sheet */
     .modal-content {
         width: 100vw;
         height: 94dvh;
@@ -2242,30 +2242,62 @@ input[type="file"] {
         position: fixed;
         transform: translateY(100%);
         transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-        padding: 20px 20px 20px 20px;
+        padding: 0; /* Remove padding from outer shell so inner body can handle it */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* Outer shell clips — inner body scrolls */
+    }
+
+    /* The sticky header stays put */
+    .modal-content .modal-header-premium {
+        flex-shrink: 0;
+        padding: 20px 20px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    /* The form body is the ONLY scrollable part */
+    .modal-content .modal-body-premium {
+        flex: 1;
+        overflow-y: scroll; /* Always show scrollbar */
+        -webkit-overflow-scrolling: touch; /* Smooth iOS/Android inertia scroll */
+        padding: 20px 16px 100px 20px; /* Extra bottom padding for submit button */
+        scrollbar-width: thin;
+        scrollbar-color: var(--primary) rgba(255,255,255,0.06);
+    }
+
+    /* The footer submit button is always visible at the bottom */
+    .modal-content .modal-footer-premium {
+        flex-shrink: 0;
+        padding: 16px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        position: sticky;
+        bottom: 0;
+        background: rgba(11, 17, 33, 0.95);
+        backdrop-filter: blur(12px);
+        z-index: 10;
     }
 
     /* Touch-optimized Sidebar Slider (Scrollbar) for Android/Mobile */
-    .modal-content::-webkit-scrollbar,
-    .panel-body::-webkit-scrollbar,
-    .property-panel::-webkit-scrollbar {
-        width: 10px; /* Much thicker for easy thumb grabbing */
+    .modal-content .modal-body-premium::-webkit-scrollbar,
+    .panel-body::-webkit-scrollbar {
+        width: 10px; /* Much thicker for easy thumb-grabbing */
     }
     
-    .modal-content::-webkit-scrollbar-track,
-    .panel-body::-webkit-scrollbar-track,
-    .property-panel::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.08); /* Visible track line */
+    .modal-content .modal-body-premium::-webkit-scrollbar-track,
+    .panel-body::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.08);
         border-radius: 10px;
-        margin: 30px 0; /* Keeps it away from the extreme edges */
+        margin: 30px 0;
     }
 
-    .modal-content::-webkit-scrollbar-thumb,
-    .panel-body::-webkit-scrollbar-thumb,
-    .property-panel::-webkit-scrollbar-thumb {
-        background: var(--primary); /* Bright solid green */
+    .modal-content .modal-body-premium::-webkit-scrollbar-thumb,
+    .panel-body::-webkit-scrollbar-thumb {
+        background: var(--primary);
         border-radius: 10px;
-        border: 2px solid rgba(15, 23, 42, 0.8); /* Padding mimic */
+        border: 2px solid rgba(15, 23, 42, 0.8);
         box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
     }
     
@@ -2273,17 +2305,7 @@ input[type="file"] {
         transform: translateY(0);
     }
     
-    .modal-header-premium {
-        padding: 20px;
-    }
-
-    .modal-body-premium {
-        padding: 20px;
-    }
-    
-    .modal-footer-premium {
-        padding: 15px 20px;
-    }
+    /* Remove these — they are now handled by .modal-content specific rules above */
 
     /* Form Grids */
     .form-grid-premium {

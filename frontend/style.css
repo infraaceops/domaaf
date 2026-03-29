@@ -1486,17 +1486,22 @@ input[type="file"] {
 }
 
 .panel-body::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 .panel-body::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    margin: 20px 0;
 }
 .panel-body::-webkit-scrollbar-thumb {
-    background: rgba(16, 185, 129, 0.2);
+    background: var(--primary);
     border-radius: 10px;
+    border: 2px solid rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 .panel-body::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background: #34d399;
+    box-shadow: 0 0 12px rgba(52, 211, 153, 0.5);
 }
 
 /* Sticky header */
@@ -2284,6 +2289,28 @@ input[type="file"] {
     .form-grid-premium {
         grid-template-columns: 1fr;
         gap: 15px;
+    }
+
+    /* Profile Page — stack avatar & form into single column */
+    #profile-section > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    #profile-section .glass {
+        padding: 20px !important;
+    }
+
+    #profile-form > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    #avatar-grid {
+        grid-template-columns: repeat(5, 1fr) !important;
+    }
+
+    #profile-img-container {
+        width: 110px !important;
+        height: 110px !important;
     }
 
     /* Cards */

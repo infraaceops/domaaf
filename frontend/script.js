@@ -526,8 +526,8 @@ function setupDraggablePanel(handleId, panelId) {
         if (!dragging) return;
         const delta = clientY - startY;
         
-        // For mobile detail panels (acting as bottom sheets), use translateY for swipe-down
-        if (panel.classList.contains('property-panel') && window.innerWidth <= 768) {
+        // For mobile detail panels and modals (acting as bottom sheets), use translateY for swipe-down
+        if ((panel.classList.contains('property-panel') || panel.classList.contains('modal-content')) && window.innerWidth <= 768) {
             if (delta > 0) { // Only allow dragging downwards
                 panel.style.transform = `translateY(${delta}px)`;
             }
@@ -547,14 +547,19 @@ function setupDraggablePanel(handleId, panelId) {
         panel.style.transition = ''; // Restore CSS transition
 
         // If mobile bottom sheet was dragged down significantly, close it
-        if (panel.classList.contains('property-panel') && window.innerWidth <= 768) {
+        if ((panel.classList.contains('property-panel') || panel.classList.contains('modal-content')) && window.innerWidth <= 768) {
             const transformStr = panel.style.transform;
             if (transformStr.includes('translateY')) {
                 const currentY = parseFloat(transformStr.replace('translateY(', '').replace('px)', '')) || 0;
                 if (currentY > window.innerHeight * 0.25) { // Dragged down more than 25% of screen
-                    const closeBtnId = panelId === 'property-detail-panel' ? 'panel-close-btn' : 'plan-panel-close-btn';
-                    const closeBtn = document.getElementById(closeBtnId);
-                    if (closeBtn) closeBtn.click();
+                    if (panel.classList.contains('modal-content')) {
+                        const closeBtn = panel.querySelector('.close-modal');
+                        if (closeBtn) closeBtn.click();
+                    } else {
+                        const closeBtnId = panelId === 'property-detail-panel' ? 'panel-close-btn' : 'plan-panel-close-btn';
+                        const closeBtn = document.getElementById(closeBtnId);
+                        if (closeBtn) closeBtn.click();
+                    }
                 }
             }
             panel.style.transform = ''; // Reset inline transform to let CSS handle open/close state

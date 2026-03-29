@@ -17,6 +17,7 @@
     padding: 0;
     box-sizing: border-box;
     font-family: 'Outfit', sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -1788,23 +1789,27 @@ input[type="file"] {
 @media (max-width: 768px) {
     .property-panel { 
         width: 100vw; 
-        height: 100dvh; 
-        max-height: 100dvh; 
-        border-radius: 0; 
-        top: 0; 
+        height: 94dvh; 
+        max-height: 94dvh; 
+        border-radius: 32px 32px 0 0; 
+        top: auto; 
+        bottom: 0; 
         left: 0; 
         transform: translateY(100%); 
         transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
     }
     
     .property-panel.panel-open {
         transform: translateY(0);
     }
 
-    .panel-image-wrap { height: 300px; }
+    .panel-image-wrap { height: 280px; }
     
-    .panel-inner { padding: 25px 20px; }
+    .panel-inner { padding: 25px 20px 40px 20px; }
     
+    .panel-title { font-size: 1.6rem; }
+
     .panel-actions {
         flex-direction: column;
     }
@@ -2171,9 +2176,9 @@ input[type="file"] {
     }
 
     .btn-outline, .btn-primary, .btn-premium-yellow, .btn-danger {
-        padding: 8px 12px;
-        font-size: 0.85rem;
-        border-radius: 10px;
+        padding: 10px 16px;
+        font-size: 0.95rem;
+        border-radius: 12px;
     }
 
     /* Hero */
@@ -2213,7 +2218,7 @@ input[type="file"] {
     /* Grids */
     .grid, .properties .grid {
         grid-template-columns: 1fr;
-        gap: 20px;
+        gap: 24px;
     }
 
     /* Modals & Panels */
@@ -2227,9 +2232,6 @@ input[type="file"] {
     
     .modal-header-premium {
         padding: 20px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
     }
 
     .modal-body-premium {
@@ -2248,16 +2250,31 @@ input[type="file"] {
 
     /* Cards */
     .property-card {
-        margin-bottom: 15px;
+        margin-bottom: 8px;
         transform: none !important;
+        border-radius: 24px;
     }
 
     .property-card:hover {
-        transform: translateY(-5px) !important;
+        transform: none !important; /* Disable hover lift on mobile to avoid sticky hover states */
+    }
+
+    .property-card:active {
+        transform: scale(0.98) !important; /* Add active tap state for Android feel */
+        transition: transform 0.1s;
     }
 
     .card-img {
-        height: 180px;
+        height: 220px; /* Taller images for immersive mobile feel */
+        border-radius: 24px 24px 0 0;
+    }
+    
+    .card-content {
+        padding: 20px;
+    }
+    
+    .card-title {
+        font-size: 1.3rem;
     }
 
     /* Detail Panels or Sidebars */

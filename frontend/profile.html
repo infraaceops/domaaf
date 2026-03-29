@@ -172,6 +172,10 @@
     <!-- Property Detail Panel — centered horizontal modal -->
     <div id="property-panel-backdrop" class="panel-backdrop hidden"></div>
     <div id="property-detail-panel" class="property-panel glass-premium hidden">
+        <!-- Modal Drag Handle -->
+        <div id="property-panel-drag-handle" class="modal-drag-handle" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; padding: 10px; cursor: grab; opacity: 0.3; transition: opacity 0.3s; z-index: 100;">
+            <div style="height: 4px; background: white; border-radius: 2px;"></div>
+        </div>
 
         <!-- LEFT: Image Slider / Video -->
         <div class="panel-image-wrap">
@@ -247,6 +251,10 @@
     <!-- Plan Detail Panel -->
     <div id="plan-panel-backdrop" class="panel-backdrop hidden"></div>
     <div id="plan-detail-panel" class="property-panel plan-panel glass-premium hidden">
+        <!-- Modal Drag Handle -->
+        <div id="plan-panel-drag-handle" class="modal-drag-handle" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; padding: 10px; cursor: grab; opacity: 0.3; transition: opacity 0.3s; z-index: 100;">
+            <div style="height: 4px; background: white; border-radius: 2px;"></div>
+        </div>
         <div class="panel-body">
             <div class="panel-header">
                 <button class="panel-close-btn" id="plan-panel-close-btn" aria-label="Close">

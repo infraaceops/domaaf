@@ -496,12 +496,18 @@ function initFormSubmission() {
 }
 
 /**
- * Drag-to-resize the upload modal (up/down drag handle)
+ * Universal Drag-to-resize/close for modals and panels (up/down drag handle)
  */
 function initModalDrag() {
-    const handle = document.getElementById('modal-drag-handle');
-    const modal = document.getElementById('upload-modal-content');
-    if (!handle || !modal) return;
+    setupDraggablePanel('modal-drag-handle', 'upload-modal-content');
+    setupDraggablePanel('property-panel-drag-handle', 'property-detail-panel');
+    setupDraggablePanel('plan-panel-drag-handle', 'plan-detail-panel');
+}
+
+function setupDraggablePanel(handleId, panelId) {
+    const handle = document.getElementById(handleId);
+    const panel = document.getElementById(panelId);
+    if (!handle || !panel) return;
 
     let startY = 0;
     let startH = 0;
@@ -509,34 +515,65 @@ function initModalDrag() {
 
     const onStart = (clientY) => {
         startY = clientY;
-        startH = modal.offsetHeight;
+        startH = panel.offsetHeight;
         dragging = true;
         document.body.style.cursor = 'ns-resize';
         document.body.style.userSelect = 'none';
+        panel.style.transition = 'none'; // Disable transition for smooth dragging
     };
 
     const onMove = (clientY) => {
         if (!dragging) return;
         const delta = clientY - startY;
-        const newH = Math.max(300, Math.min(window.innerHeight * 0.92, startH + delta));
-        modal.style.height = newH + 'px';
-        modal.style.maxHeight = newH + 'px';
+        
+        // For mobile detail panels (acting as bottom sheets), use translateY for swipe-down
+        if (panel.classList.contains('property-panel') && window.innerWidth <= 768) {
+            if (delta > 0) { // Only allow dragging downwards
+                panel.style.transform = `translateY(${delta}px)`;
+            }
+        } else {
+            // Desktop/Tablet or Standard Modal: Height resizing
+            const newH = Math.max(300, Math.min(window.innerHeight * 0.95, startH + delta));
+            panel.style.height = newH + 'px';
+            panel.style.maxHeight = newH + 'px';
+        }
     };
 
     const onEnd = () => {
+        if (!dragging) return;
         dragging = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        panel.style.transition = ''; // Restore CSS transition
+
+        // If mobile bottom sheet was dragged down significantly, close it
+        if (panel.classList.contains('property-panel') && window.innerWidth <= 768) {
+            const transformStr = panel.style.transform;
+            if (transformStr.includes('translateY')) {
+                const currentY = parseFloat(transformStr.replace('translateY(', '').replace('px)', '')) || 0;
+                if (currentY > window.innerHeight * 0.25) { // Dragged down more than 25% of screen
+                    const closeBtnId = panelId === 'property-detail-panel' ? 'panel-close-btn' : 'plan-panel-close-btn';
+                    const closeBtn = document.getElementById(closeBtnId);
+                    if (closeBtn) closeBtn.click();
+                }
+            }
+            panel.style.transform = ''; // Reset inline transform to let CSS handle open/close state
+        }
     };
 
-    // Mouse
+    // Mouse events
     handle.addEventListener('mousedown', (e) => { e.preventDefault(); onStart(e.clientY); });
     document.addEventListener('mousemove', (e) => onMove(e.clientY));
     document.addEventListener('mouseup', onEnd);
 
-    // Touch (mobile)
+    // Touch events
     handle.addEventListener('touchstart', (e) => { onStart(e.touches[0].clientY); }, { passive: true });
-    document.addEventListener('touchmove', (e) => { if (dragging) { e.preventDefault(); onMove(e.touches[0].clientY); } }, { passive: false });
+    document.addEventListener('touchmove', (e) => { 
+        if (dragging) { 
+            e.preventDefault(); 
+            onMove(e.touches[0].clientY); 
+        } 
+    }, { passive: false });
     document.addEventListener('touchend', onEnd);
 }
 

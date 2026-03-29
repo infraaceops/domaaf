@@ -222,6 +222,10 @@
     <!-- Upload Modal -->
     <div id="upload-modal" class="modal hidden">
         <div class="modal-content glass-premium anim-premium-pop" id="upload-modal-content" style="max-width: 850px; margin: auto; position: relative;">
+            <!-- Modal Drag Handle -->
+            <div id="modal-drag-handle" class="modal-drag-handle" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; padding: 10px; cursor: grab; opacity: 0.3; transition: opacity 0.3s; z-index: 100;">
+                <div style="height: 4px; background: white; border-radius: 2px;"></div>
+            </div>
             <!-- Modal Header -->
             <div class="modal-header-premium">
                 <div>
@@ -232,10 +236,6 @@
             </div>
 
             <form id="property-form" class="modal-body-premium">
-                <!-- Modal Drag Handle (Simplified/Premium) -->
-                <div id="modal-drag-handle" class="modal-drag-handle" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; padding: 10px; cursor: grab; opacity: 0.3; transition: opacity 0.3s;">
-                    <div style="height: 4px; background: white; border-radius: 2px;"></div>
-                </div>
 
                 <div class="form-grid-premium">
                     <!-- Left Column: Details -->

@@ -32,26 +32,33 @@ self.addEventListener('activate', event => {
 });
 
 /**
- * Fetch Event - Network-First Strategy
+ * Fetch Event - Stale-While-Revalidate Strategy
  */
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Only handle local assets
+    // Only handle local assets (CSS, JS, manifest, etc.)
     if (url.origin !== self.location.origin) return;
 
+    // For HTML files, we might prefer a Network-First strategy to ensure
+    // users see the latest content, but for this optimization, we'll go with
+    // Stale-While-Revalidate for ALL local assets to maximize speed.
     event.respondWith(
-        fetch(event.request)
-            .then(networkResponse => {
-                // Update cache with the fresh version
-                return caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, networkResponse.clone());
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.match(event.request).then(cachedResponse => {
+                const fetchedResponse = fetch(event.request).then(networkResponse => {
+                    // Update cache for next time
+                    if (networkResponse.status === 200) {
+                        cache.put(event.request, networkResponse.clone());
+                    }
                     return networkResponse;
+                }).catch(() => {
+                    // If network fails, we've already returned the cachedResponse (if any)
                 });
-            })
-            .catch(() => {
-                // Fallback to cache if network fails
-                return caches.match(event.request);
-            })
+
+                // Return cached version immediately if it exists, otherwise wait for network
+                return cachedResponse || fetchedResponse;
+            });
+        })
     );
 });

@@ -140,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         initAuthListener();
+        handleFirebaseAuthActions();
         initModals();
         initMediaUpload();
         initFilters();
@@ -671,13 +672,20 @@ function applyAuthModeUI() {
     }
     const googleBtnSpan = document.querySelector('.btn-google span');
     if (googleBtnSpan) {
-        googleBtnSpan.textContent = isSignUpMode ? 'Sign Up with Google' : 'Continue with Google';
+        // Unified label — Google button handles both sign-up & sign-in automatically
+        googleBtnSpan.textContent = 'Continue with Google';
     }
 
     if (toggleAuth) toggleAuth.innerText = isSignUpMode ? "Login" : "Sign Up";
 
     if (toggleMsg && toggleMsg.firstChild) {
         toggleMsg.firstChild.textContent = isSignUpMode ? "Already have an account? " : "Don't have an account? ";
+    }
+
+    // Toggle Forgot Password link — only show when in Sign In mode
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    if (forgotPasswordLink) {
+        forgotPasswordLink.style.display = isSignUpMode ? 'none' : 'block';
     }
 }
 
@@ -842,6 +850,81 @@ function initModals() {
         };
     }
 
+    // Forgot Password Link
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    if (forgotPasswordLink) {
+        forgotPasswordLink.onclick = async (e) => {
+            e.preventDefault();
+            const email = authEmail.value.trim();
+            const authErrorMsg = document.getElementById('auth-error-msg');
+            
+            if (!email) {
+                if (authErrorMsg) {
+                    authErrorMsg.innerText = "Please enter your email address first, then click 'Forgot password?'.";
+                    authErrorMsg.style.display = 'block';
+                } else {
+                    showThemedWarningPopup("Please enter your email address first to reset your password.");
+                }
+                authEmail.focus();
+                return;
+            }
+
+            // Show loading state on link
+            const originalText = forgotPasswordLink.innerText;
+            forgotPasswordLink.innerText = "Sending...";
+            forgotPasswordLink.style.pointerEvents = "none";
+            forgotPasswordLink.style.opacity = "0.5";
+
+            try {
+                await firebase.auth().sendPasswordResetEmail(email);
+                showThemedSuccessPopup("Password reset email sent! Check your inbox.");
+                if (authErrorMsg) authErrorMsg.style.display = 'none';
+            } catch (error) {
+                console.error("Password Reset Error:", error);
+                if (authErrorMsg) {
+                    authErrorMsg.innerText = error.message;
+                    authErrorMsg.style.display = 'block';
+                } else {
+                    showThemedErrorPopup(error.message);
+                }
+            } finally {
+                forgotPasswordLink.innerText = originalText;
+                forgotPasswordLink.style.pointerEvents = "auto";
+                forgotPasswordLink.style.opacity = "1";
+            }
+        };
+    }
+
+    // Password Visibility Toggle
+    const togglePasswordBtn = document.getElementById('toggle-password-visibility');
+    if (togglePasswordBtn && authPassword) {
+        togglePasswordBtn.onclick = () => {
+            const isPassword = authPassword.type === 'password';
+            authPassword.type = isPassword ? 'text' : 'password';
+            
+            // Toggle icon state
+            togglePasswordBtn.classList.toggle('is-visible', !isPassword);
+            
+            // Update SVG icon (Eye vs Eye Off)
+            const eyeIcon = document.getElementById('eye-icon');
+            if (eyeIcon) {
+                if (isPassword) {
+                    // Eye Off Icon
+                    eyeIcon.innerHTML = `
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    `;
+                } else {
+                    // Regular Eye Icon
+                    eyeIcon.innerHTML = `
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    `;
+                }
+            }
+        };
+    }
+
     if (loginForm) {
         loginForm.onsubmit = async (e) => {
             e.preventDefault();
@@ -969,14 +1052,16 @@ function initModals() {
         };
     }
 
-    // Google Login Button
+    // Google Login Button — unified sign-up & sign-in flow
+    // Whether the user clicked "Sign Up" or "Sign In" and then chose Google,
+    // the behaviour is identical: create account if new, log in if existing.
     const googleLoginBtn = document.querySelector('.btn-google');
     if (googleLoginBtn) {
         googleLoginBtn.onclick = async () => {
             console.log("Google Login clicked");
             const provider = new firebase.auth.GoogleAuthProvider();
             try {
-                sessionStorage.setItem('isAuthProcessing', 'true'); // Block UI observer
+                sessionStorage.setItem('isAuthProcessing', 'true');
                 provider.setCustomParameters({ prompt: 'select_account' });
                 await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
@@ -987,11 +1072,8 @@ function initModals() {
                 const db = firebase.firestore();
                 const userRef = db.collection('users').doc(user.uid);
 
-                // Google emails are pre-verified by Google (user.emailVerified is always true for Google OAuth)
-                // This satisfies the verification requirement — the email IS verified
                 if (isNewUser) {
-                    // NEW GOOGLE ACCOUNT: Save profile with domaafVerified=true
-                    // Google already verifies the email — user.emailVerified is true
+                    // NEW USER — register profile (Google emails are pre-verified)
                     await userRef.set({
                         email: user.email,
                         displayName: user.displayName || user.email.split('@')[0],
@@ -1000,26 +1082,61 @@ function initModals() {
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                     });
-
-                    // Show account registered popup (Google email is pre-verified — no email link needed)
-                    if (loginModal) loginModal.classList.add('hidden');
-                    showThemedSuccessPopup('Google Account Registered! Your Google email is automatically verified. Welcome to Domaaf!');
-                    setTimeout(() => {
-                        localStorage.setItem('domaaf_auth_hint', 'true');
-                        syncUserProfile(user).catch(console.error);
-                    }, 2500);
-
                 } else {
-                    // EXISTING GOOGLE ACCOUNT: user.emailVerified is always true — allow login
+                    // RETURNING USER — update last login timestamp
                     userRef.update({
                         domaafVerified: true,
                         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                     }).catch(console.warn);
+                }
 
-                    localStorage.setItem('domaaf_auth_hint', 'true');
-                    syncUserProfile(user).catch(console.error);
-                    if (loginModal) loginModal.classList.add('hidden');
-                    showThemedWelcomePopup(user.displayName || user.email.split('@')[0]);
+                // ── Unified post-login flow (same for new & returning users) ──
+                if (loginModal) loginModal.classList.add('hidden');
+                localStorage.setItem('domaaf_auth_hint', 'true');
+
+                // Immediately update the nav so the user sees they are logged in
+                const authButtons = document.getElementById('auth-buttons');
+                const userProfileEl = document.getElementById('user-profile');
+                const userEmailText = document.getElementById('user-display-email');
+                const userNameText = document.getElementById('user-display-name');
+                const userAvatarEl = document.getElementById('user-avatar');
+                const dropdownAvatarMini = document.getElementById('dropdown-avatar-mini');
+
+                if (authButtons) authButtons.style.display = 'none';
+                if (userProfileEl) userProfileEl.style.display = 'flex';
+
+                const displayName = user.displayName || user.email.split('@')[0];
+                if (userNameText) userNameText.innerText = displayName;
+                if (userEmailText) userEmailText.innerText = user.email;
+
+                const initial = displayName[0].toUpperCase();
+                if (userAvatarEl) {
+                    if (user.photoURL) {
+                        userAvatarEl.style.backgroundImage = `url(${user.photoURL})`;
+                        userAvatarEl.style.backgroundSize = 'cover';
+                        userAvatarEl.innerText = '';
+                    } else {
+                        userAvatarEl.innerText = initial;
+                    }
+                }
+                if (dropdownAvatarMini) {
+                    if (user.photoURL) {
+                        dropdownAvatarMini.style.backgroundImage = `url(${user.photoURL})`;
+                        dropdownAvatarMini.style.backgroundSize = 'cover';
+                        dropdownAvatarMini.innerText = '';
+                    } else {
+                        dropdownAvatarMini.innerText = initial;
+                    }
+                }
+
+                // Sync full profile in background
+                syncUserProfile(user).catch(console.error);
+
+                // Show contextual toast
+                if (isNewUser) {
+                    showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
+                } else {
+                    showThemedWelcomePopup(displayName);
                 }
 
             } catch (error) {
@@ -1330,7 +1447,7 @@ function initAuthListener() {
         const userAvatar = document.getElementById('user-avatar');
         const userEmailText = document.getElementById('user-display-email');
         const userNameText = document.getElementById('user-display-name');
-        const logoutBtn = document.getElementById('logout-btn');
+        const dropdownAvatarMini = document.getElementById('dropdown-avatar-mini');
 
         if (user) {
             // --- ENFORCE EMAIL VERIFICATION (Skip for Admin) ---
@@ -1340,12 +1457,9 @@ function initAuthListener() {
                 console.warn("User is logged in but NOT verified. Enforcing logout.");
                 localStorage.removeItem('domaaf_auth_hint');
 
-                // If they JUST signed up, we don't want to show an error yet because they were told to check email.
-                // But we must hide the profile UI.
                 if (authButtons) authButtons.style.display = 'flex';
                 if (userProfile) userProfile.style.display = 'none';
 
-                // Sign out on backend
                 await firebase.auth().signOut();
                 return;
             }
@@ -1357,10 +1471,7 @@ function initAuthListener() {
             if (userProfile) userProfile.style.display = 'flex';
             if (userEmailText) userEmailText.innerText = user.email;
 
-            const dropdownAvatarMini = document.getElementById('dropdown-avatar-mini');
             const userInitial = (user.displayName || user.email || "?").charAt(0).toUpperCase();
-            if (userAvatar && !userAvatar.style.backgroundImage) userAvatar.innerText = userInitial;
-            if (dropdownAvatarMini && !dropdownAvatarMini.style.backgroundImage) dropdownAvatarMini.innerText = userInitial;
 
             const page = window.location.pathname.split("/").pop() || "index.html";
             if (page === "dashboard.html") loadUserDashboard();
@@ -1370,15 +1481,15 @@ function initAuthListener() {
             firebase.firestore().collection('users').doc(user.uid).get().then(userDoc => {
                 if (!userDoc.exists) return;
                 const data = userDoc.data();
-                if (userNameText) userNameText.innerText = data.displayName || "User";
-                const initial = (data.displayName || user.displayName || user.email || "?")[0].toUpperCase();
+                const displayName = data.displayName || user.displayName || "User";
+                if (userNameText) userNameText.innerText = displayName;
+
+                const initial = displayName[0].toUpperCase();
                 const photoURL = data.photoURL || user.photoURL;
 
                 [userAvatar, dropdownAvatarMini].forEach(el => {
                     if (el) {
                         if (photoURL) {
-                            // Robust pathing: if it's a relative path starting with 'assets/', 
-                            // and we are in a subdirectory (like /admin/), prefix with '../'
                             let finalURL = photoURL;
                             if (photoURL.startsWith('assets/') && window.location.pathname.includes('/admin/')) {
                                 finalURL = '../' + photoURL;
@@ -1388,6 +1499,7 @@ function initAuthListener() {
                             img.onload = () => {
                                 el.innerText = "";
                                 el.style.backgroundImage = `url(${finalURL})`;
+                                el.style.backgroundSize = 'cover';
                             };
                             img.onerror = () => {
                                 el.innerText = initial;
@@ -1400,7 +1512,7 @@ function initAuthListener() {
                         }
                     }
                 });
-            }).catch(e => console.warn("Doc fetch failed (verified user):", e));
+            }).catch(e => console.warn("Doc fetch failed:", e));
 
         } else {
             // --- NO USER ---
@@ -1409,8 +1521,118 @@ function initAuthListener() {
             if (userProfile) userProfile.style.display = 'none';
         }
     });
+}
 
-    // Sign out is now handled via event delegation in initModals()
+/**
+ * Handle Firebase Dynamic Email Actions (Reset Password, Verify Email)
+ */
+async function handleFirebaseAuthActions() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+
+    if (!mode || !oobCode) return;
+
+    console.log(`[AUTH-ACTION] Detected mode: ${mode}`);
+
+    // Clean URL after capturing params (optional, keeps it tidy)
+    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+
+    try {
+        if (mode === 'resetPassword') {
+            const email = await firebase.auth().verifyPasswordResetCode(oobCode);
+            showPasswordResetPopup(oobCode, email);
+        } else if (mode === 'verifyEmail') {
+            await firebase.auth().applyActionCode(oobCode);
+            showThemedSuccessPopup("Email Verified Successfully! You can now access all features.");
+        }
+    } catch (error) {
+        console.error(`[AUTH-ACTION] Error handling ${mode}:`, error);
+        showThemedErrorPopup(error.message || "Invalid or expired action link. Please try again.");
+    }
+}
+
+/**
+ * Show a premium themed popup for password reset
+ */
+function showPasswordResetPopup(oobCode, email) {
+    const overlay = document.createElement('div');
+    overlay.className = 'verification-overlay';
+    overlay.style.zIndex = '20000';
+    
+    overlay.innerHTML = `
+        <div class="verification-card glass-premium anim-premium-pop" style="max-width: 400px; padding: 40px; border-color: var(--primary) !important;">
+            <div class="logo-icon" style="margin-bottom: 24px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;margin:0 auto;">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M8 11h8"/><path d="M12 7v8"/>
+                </svg>
+            </div>
+            
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: white; margin-bottom: 8px;">Reset Password</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px;">Setting a new password for <br><strong style="color:white;">${email}</strong></p>
+            
+            <div id="reset-error" style="color: #ef4444; font-size: 0.85rem; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 12px; margin-bottom: 16px; border: 1px solid rgba(239,68,68,0.2); display: none;"></div>
+
+            <form id="reset-password-form" style="display:flex; flex-direction:column; gap: 20px;">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">New Password</label>
+                    <input type="password" id="new-password" placeholder="Min. 6 characters" class="input-premium" required minlength="6">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Confirm New Password</label>
+                    <input type="password" id="confirm-new-password" placeholder="Repeat new password" class="input-premium" required minlength="6">
+                </div>
+                
+                <button type="submit" class="btn-primary w-full" style="height:54px; font-weight:700; font-size:1rem; margin-top:10px;">Update Password</button>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('show'), 100);
+
+    const form = document.getElementById('reset-password-form');
+    const errorDiv = document.getElementById('reset-error');
+    const submitBtn = form.querySelector('button');
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const pass1 = document.getElementById('new-password').value;
+        const pass2 = document.getElementById('confirm-new-password').value;
+
+        if (pass1 !== pass2) {
+            errorDiv.innerText = "Passwords do not match.";
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Updating...";
+        errorDiv.style.display = 'none';
+
+        try {
+            await firebase.auth().confirmPasswordReset(oobCode, pass1);
+            
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.remove(), 400);
+
+            showThemedSuccessPopup("Password updated successfully! You can now sign in with your new password.");
+            
+            setTimeout(() => {
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) loginModal.classList.remove('hidden');
+            }, 1000);
+
+        } catch (error) {
+            console.error("Confirm Reset Error:", error);
+            errorDiv.innerText = error.message;
+            errorDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Update Password";
+        }
+    };
 }
 
 // --- Media Upload & Compression ---
@@ -1707,19 +1929,31 @@ async function loadProperties(locationFilter = '', typeFilter = '') {
 /**
  * Render the property grid with a list of properties
  */
+/**
+ * Render the property grid with a list of properties
+ */
 function renderGrid(data) {
     const grid = document.getElementById('properties-grid');
     if (!grid) return;
 
-    grid.innerHTML = data.map((p, idx) => {
-        const imageUrl = getValidImageUrl(p.imageUrl);
-        // Store property data safely as a data-index attribute
-        window._propertyList = window._propertyList || [];
+    // Use DocumentFragment for better DOM injection performance
+    const fragment = document.createDocumentFragment();
+    
+    // Reset property list global
+    window._propertyList = [];
+
+    data.forEach((p, idx) => {
         window._propertyList[idx] = p;
-        return `
-        <div class="property-card" onclick="openPropertyPanel(${idx})" style="cursor:pointer;">
+        const imageUrl = getValidImageUrl(p.imageUrl);
+        
+        const card = document.createElement('div');
+        card.className = 'property-card';
+        card.style.cursor = 'pointer';
+        card.onclick = () => openPropertyPanel(idx);
+        
+        card.innerHTML = `
             <div class="card-img">
-                <img src="${imageUrl}" alt="${p.title}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
+                <img src="${imageUrl}" alt="${p.title}" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;">
                 ${p.plan && p.plan !== 'free' ? `<span class="card-badge badge-gold">${p.plan}</span>` : ''}
                 <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; backdrop-filter: blur(4px);">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -1732,9 +1966,12 @@ function renderGrid(data) {
                 <p class="price" style="color: #10b981; font-weight: 700;">${Number(p.price).toLocaleString()} XAF <small style="color: grey; font-weight: 400;">/ month</small></p>
                 <button class="btn-primary" style="width:100%; padding:10px; margin-top:15px; font-size:0.85rem; font-weight: 600;">View Details</button>
             </div>
-        </div>
-    `;
-    }).join('');
+        `;
+        fragment.appendChild(card);
+    });
+
+    grid.innerHTML = ''; // Clear skeleton
+    grid.appendChild(fragment);
 }
 
 // --- Property Detail Panel ---

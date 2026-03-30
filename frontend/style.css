@@ -73,6 +73,26 @@ body {
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15) !important;
 }
 
+/* Password Toggle Styling */
+.password-toggle-btn:hover {
+    opacity: 1 !important;
+    color: var(--primary) !important;
+    transform: scale(1.1);
+}
+
+.password-toggle-btn:active {
+    transform: scale(0.9);
+}
+
+.password-toggle-btn svg {
+    transition: all 0.3s ease;
+}
+
+.password-toggle-btn.is-visible svg {
+    color: var(--primary);
+    filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.5));
+}
+
 /* 3. Modal & Panel Refinement */
 .modal-content.glass-premium {
     padding: 0 !important;

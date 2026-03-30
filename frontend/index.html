@@ -7,9 +7,14 @@
     <title>Domaaf | Premium Rentals in Cameroon</title>
     <meta name="description" content="Find the best rental properties in Cameroon. Upload your property for free.">
 
-    <!-- Google Fonts -->
+    <!-- Resource Hints -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://apis.google.com" crossorigin>
+
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
@@ -491,8 +496,19 @@
                         <input type="email" id="auth-email" placeholder="you@example.com" class="input-premium" required>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:8px;">
-                        <label for="auth-password" style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Password</label>
-                        <input type="password" id="auth-password" placeholder="Enter your password" class="input-premium" required>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label for="auth-password" style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Password</label>
+                            <a href="#" id="forgot-password-link" style="font-size:0.78rem; color:var(--primary); font-weight:600; text-decoration:none; opacity:0.85; transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.85'">Forgot password?</a>
+                        </div>
+                        <div class="password-input-wrapper" style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="auth-password" placeholder="Enter your password" class="input-premium" required style="padding-right: 50px !important;">
+                            <button type="button" id="toggle-password-visibility" class="password-toggle-btn" style="position: absolute; right: 10px; background: none; border: none; padding: 8px; cursor: pointer; color: var(--text-muted); opacity: 0.6; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;">
+                                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <button type="submit" id="auth-submit-btn" class="btn-primary w-full" style="margin-top: 8px; height: 52px; font-size: 1rem; font-weight: 700;">Sign In</button>
@@ -525,19 +541,15 @@
 
 
     <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"
-        onerror="console.error('Failed to load Firebase App SDK')"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"
-        onerror="console.error('Failed to load Firebase Auth SDK')"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"
-        onerror="console.error('Failed to load Firebase Firestore SDK')"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"
-        onerror="console.error('Failed to load Firebase Storage SDK')"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js" defer></script>
 
     <div id="toast-container" class="toast-container"></div>
     <!-- Config & App Logic -->
-    <script src="firebase-config.js" onerror="console.error('Failed to load firebase-config.js')"></script>
-    <script src="script.js" onerror="console.error('Failed to load script.js')"></script>
+    <script src="firebase-config.js" defer></script>
+    <script src="script.js" defer></script>
 </body>
 
 </html>

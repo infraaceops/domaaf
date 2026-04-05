@@ -123,7 +123,9 @@ function showSuccess() {
 }
 
 async function startGoogleSignIn() {
+    console.log('[RELAY] Starting Google Sign-In...');
     if (!sessionKey) {
+        console.error('[RELAY] Missing sessionKey in URL');
         showError('Invalid session. Please go back to the app and try again.');
         return;
     }
@@ -132,19 +134,30 @@ async function startGoogleSignIn() {
     btn.disabled = true;
     btn.style.display = 'none';
     document.getElementById('spinner').style.display = 'block';
-    document.getElementById('desc').textContent = 'Opening Google sign-in…';
+    
+    const desc = document.getElementById('desc');
+    desc.textContent = 'Opening Google sign-in…';
 
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
 
+        console.log('[RELAY] Calling signInWithPopup...');
         const result = await auth.signInWithPopup(provider);
         const user       = result.user;
         const credential = result.credential;
 
-        if (!credential) throw new Error('No credential returned from Google.');
+        console.log('[RELAY] Popup successful. User:', user.email);
+        
+        if (!credential) {
+            console.error('[RELAY] No credential returned from Google popup');
+            throw new Error('No credential returned from Google. Please ensure popups and third-party cookies are allowed.');
+        }
 
-        // Store credential tokens in Firestore for the APK to read back
+        desc.textContent = 'Verifying and saving session…';
+        console.log('[RELAY] Storing tokens in Firestore for session:', sessionKey);
+
+        // Store tokens in Firestore for the APK/Web app to read back
         await db.collection('auth_sessions').doc(sessionKey).set({
             idToken:     credential.idToken     || null,
             accessToken: credential.accessToken || null,
@@ -155,13 +168,15 @@ async function startGoogleSignIn() {
             createdAt:   firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        console.log('[RELAY] Firestore write SUCCESS. Showing done screen.');
         showSuccess();
 
     } catch (err) {
-        console.error('[AUTH-RELAY] Error:', err);
-        if (err.code === 'auth/popup-closed-by-user' ||
-            err.code === 'auth/cancelled-popup-request') {
-            showError('Sign-in was cancelled. You can try again.');
+        console.error('[RELAY] FAILURE:', err);
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+            showError('Sign-in window was closed. Please try again.');
+        } else if (err.code === 'permission-denied') {
+            showError('Firestore permission denied. Please ensure security rules are updated.');
         } else {
             showError('Sign-in failed: ' + (err.message || err.code));
         }

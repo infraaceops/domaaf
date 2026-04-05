@@ -1187,30 +1187,44 @@ async function signInWithGoogleViaRelay() {
 }
 
 async function readRelayCredential(sessionKey) {
-    console.log('[AUTH] Reading relay credential from Firestore...');
-    const db   = firebase.firestore();
-    const docRef = db.collection('auth_sessions').doc(sessionKey);
-    const snap = await docRef.get();
+    console.log('[AUTH] Starting credential retrieval for session:', sessionKey);
+    const db = firebase.firestore();
+    try {
+        const docRef = db.collection('auth_sessions').doc(sessionKey);
+        console.log('[AUTH] Fetching session document from Firestore...');
+        const snap = await docRef.get();
 
-    if (!snap.exists) {
-        throw new Error('Sign-in was not completed or timed out.');
+        if (!snap.exists) {
+            console.error('[AUTH] Relay document NOT FOUND for session:', sessionKey);
+            throw new Error('Sign-in session not found or expired. Please try again.');
+        }
+
+        const data = snap.data();
+        console.log('[AUTH] Relay data retrieved successfully. Tokens present:', !!data.idToken, !!data.accessToken);
+
+        // Delete immediately — one-time use only for security
+        docRef.delete().catch(err => console.warn('[AUTH] Session cleanup failed:', err));
+
+        if (!data.idToken && !data.accessToken) {
+            console.error('[AUTH] No valid tokens in relay data:', data);
+            throw new Error('Received incomplete credentials. Please try again.');
+        }
+
+        console.log('[AUTH] Building Firebase credential...');
+        const credential = firebase.auth.GoogleAuthProvider.credential(
+            data.idToken     || null,
+            data.accessToken || null
+        );
+
+        console.log('[AUTH] Signing in with credential...');
+        const authResult = await firebase.auth().signInWithCredential(credential);
+        console.log('[AUTH] Sign-in SUCCESS for user:', authResult.user.email);
+        return { user: authResult.user, isNewUser: data.isNewUser };
+
+    } catch (err) {
+        console.error('[AUTH] readRelayCredential FAILED:', err);
+        throw err;
     }
-
-    const data = snap.data();
-    // Delete immediately — one-time use only for security
-    docRef.delete().catch(console.warn);
-
-    if (!data.idToken && !data.accessToken) {
-        throw new Error('No credentials received from Google.');
-    }
-
-    // Build a Google Firebase credential and sign in
-    const credential = firebase.auth.GoogleAuthProvider.credential(
-        data.idToken    || null,
-        data.accessToken || null
-    );
-    const authResult = await firebase.auth().signInWithCredential(credential);
-    return { user: authResult.user, isNewUser: data.isNewUser };
 }
 
 /**

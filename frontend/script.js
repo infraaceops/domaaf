@@ -1527,6 +1527,52 @@ function initAuthListener() {
  * Handle Firebase Dynamic Email Actions (Reset Password, Verify Email)
  */
 async function handleFirebaseAuthActions() {
+    // ── Step 1: Check for a pending Google redirect result ──
+    // Handles the case where signInWithRedirect was used (APK, or popup-blocked web).
+    try {
+        const redirectResult = await firebase.auth().getRedirectResult();
+        if (redirectResult && redirectResult.user) {
+            console.log('[AUTH] getRedirectResult: user signed in via redirect:', redirectResult.user.email);
+            const user = redirectResult.user;
+            const isNewUser = redirectResult.additionalUserInfo?.isNewUser;
+
+            const db = firebase.firestore();
+            const userRef = db.collection('users').doc(user.uid);
+            if (isNewUser) {
+                await userRef.set({
+                    email: user.email,
+                    displayName: user.displayName || user.email.split('@')[0],
+                    domaafVerified: true,
+                    provider: 'google',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                userRef.update({ domaafVerified: true, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(console.warn);
+            }
+
+            const loginModal = document.getElementById('login-modal');
+            if (loginModal) loginModal.classList.add('hidden');
+            localStorage.setItem('domaaf_auth_hint', 'true');
+            syncUserProfile(user).catch(console.error);
+
+            const displayName = user.displayName || user.email.split('@')[0];
+            if (isNewUser) {
+                showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
+            } else {
+                showThemedWelcomePopup(displayName);
+            }
+            return;
+        }
+    } catch (redirectErr) {
+        if (redirectErr.code !== 'auth/popup-closed-by-user' &&
+            redirectErr.code !== 'auth/cancelled-popup-request' &&
+            redirectErr.code !== 'auth/no-auth-event') {
+            console.error('[AUTH] getRedirectResult error:', redirectErr);
+        }
+    }
+
+    // ── Step 2: Handle email action links (password reset, email verification) ──
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
     const oobCode = urlParams.get('oobCode');
@@ -1535,7 +1581,7 @@ async function handleFirebaseAuthActions() {
 
     console.log(`[AUTH-ACTION] Detected mode: ${mode}`);
 
-    // Clean URL after capturing params (optional, keeps it tidy)
+    // Clean URL after capturing params
     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
     window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
 

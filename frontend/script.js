@@ -1053,86 +1053,87 @@ function initModals() {
     }
 
     // Google Login Button — unified sign-up & sign-in flow
-    // Whether the user clicked "Sign Up" or "Sign In" and then chose Google,
-    // the behaviour is identical: create account if new, log in if existing.
+    // Web: signInWithPopup (works in real browsers).
+    // APK: signInWithGoogleViaRelay (opens Chrome Custom Tab with auth-relay.html,
+    //      avoids all Android WebView cross-origin storage partitioning issues).
     const googleLoginBtn = document.querySelector('.btn-google');
     if (googleLoginBtn) {
         googleLoginBtn.onclick = async () => {
             console.log("Google Login clicked");
-            const provider = new firebase.auth.GoogleAuthProvider();
             try {
                 sessionStorage.setItem('isAuthProcessing', 'true');
-                provider.setCustomParameters({ prompt: 'select_account' });
                 await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-                const result = await firebase.auth().signInWithPopup(provider);
-                const user = result.user;
-                const isNewUser = result.additionalUserInfo.isNewUser;
+                let user, isNewUser;
 
-                const db = firebase.firestore();
+                if (isMobileApp()) {
+                    // ── APK path: use Chrome Custom Tab relay page ──────────────
+                    console.log('[AUTH] APK detected — using relay page flow');
+                    const relayResult = await signInWithGoogleViaRelay();
+                    user      = relayResult.user;
+                    isNewUser = relayResult.isNewUser;
+                } else {
+                    // ── Web path: standard popup (works in real browsers) ────────
+                    console.log('[AUTH] Web — using signInWithPopup');
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' });
+                    const result = await firebase.auth().signInWithPopup(provider);
+                    user      = result.user;
+                    isNewUser = result.additionalUserInfo?.isNewUser;
+                }
+
+                // ── Sync Firestore profile ──────────────────────────────────────
+                const db      = firebase.firestore();
                 const userRef = db.collection('users').doc(user.uid);
-
                 if (isNewUser) {
-                    // NEW USER — register profile (Google emails are pre-verified)
                     await userRef.set({
-                        email: user.email,
-                        displayName: user.displayName || user.email.split('@')[0],
+                        email:        user.email,
+                        displayName:  user.displayName || user.email.split('@')[0],
                         domaafVerified: true,
-                        provider: 'google',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                        provider:     'google',
+                        createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin:    firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
-                    // RETURNING USER — update last login timestamp
                     userRef.update({
                         domaafVerified: true,
-                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                        lastLogin:      firebase.firestore.FieldValue.serverTimestamp()
                     }).catch(console.warn);
                 }
 
-                // ── Unified post-login flow (same for new & returning users) ──
+                // ── Update UI ───────────────────────────────────────────────────
                 if (loginModal) loginModal.classList.add('hidden');
                 localStorage.setItem('domaaf_auth_hint', 'true');
 
-                // Immediately update the nav so the user sees they are logged in
-                const authButtons = document.getElementById('auth-buttons');
-                const userProfileEl = document.getElementById('user-profile');
-                const userEmailText = document.getElementById('user-display-email');
-                const userNameText = document.getElementById('user-display-name');
-                const userAvatarEl = document.getElementById('user-avatar');
-                const dropdownAvatarMini = document.getElementById('dropdown-avatar-mini');
+                const authButtons    = document.getElementById('auth-buttons');
+                const userProfileEl  = document.getElementById('user-profile');
+                const userEmailText  = document.getElementById('user-display-email');
+                const userNameText   = document.getElementById('user-display-name');
+                const userAvatarEl   = document.getElementById('user-avatar');
+                const dropdownAvatar = document.getElementById('dropdown-avatar-mini');
 
-                if (authButtons) authButtons.style.display = 'none';
+                if (authButtons)   authButtons.style.display   = 'none';
                 if (userProfileEl) userProfileEl.style.display = 'flex';
 
                 const displayName = user.displayName || user.email.split('@')[0];
-                if (userNameText) userNameText.innerText = displayName;
+                if (userNameText)  userNameText.innerText  = displayName;
                 if (userEmailText) userEmailText.innerText = user.email;
 
-                const initial = displayName[0].toUpperCase();
-                if (userAvatarEl) {
+                const setAvatar = (el) => {
+                    if (!el) return;
                     if (user.photoURL) {
-                        userAvatarEl.style.backgroundImage = `url(${user.photoURL})`;
-                        userAvatarEl.style.backgroundSize = 'cover';
-                        userAvatarEl.innerText = '';
+                        el.style.backgroundImage = `url(${user.photoURL})`;
+                        el.style.backgroundSize  = 'cover';
+                        el.innerText = '';
                     } else {
-                        userAvatarEl.innerText = initial;
+                        el.innerText = displayName[0].toUpperCase();
                     }
-                }
-                if (dropdownAvatarMini) {
-                    if (user.photoURL) {
-                        dropdownAvatarMini.style.backgroundImage = `url(${user.photoURL})`;
-                        dropdownAvatarMini.style.backgroundSize = 'cover';
-                        dropdownAvatarMini.innerText = '';
-                    } else {
-                        dropdownAvatarMini.innerText = initial;
-                    }
-                }
+                };
+                setAvatar(userAvatarEl);
+                setAvatar(dropdownAvatar);
 
-                // Sync full profile in background
                 syncUserProfile(user).catch(console.error);
 
-                // Show contextual toast
                 if (isNewUser) {
                     showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
                 } else {
@@ -1141,12 +1142,76 @@ function initModals() {
 
             } catch (error) {
                 console.error("Google Login Error:", error);
-                showThemedErrorPopup(error.message);
+                if (error.code !== 'auth/popup-closed-by-user' &&
+                    error.code !== 'auth/cancelled-popup-request') {
+                    showThemedErrorPopup(error.message || 'Sign-in failed. Please try again.');
+                }
             } finally {
                 sessionStorage.removeItem('isAuthProcessing');
             }
         };
     }
+}
+
+// ── APK Google Sign-In via Auth Relay Page ────────────────────────────────
+// Opens https://domaaf.infraaceops.com/auth-relay.html in a Chrome Custom Tab
+// (a real browser, NOT the WebView). The relay page does signInWithPopup —
+// which works fine in Chrome — stores the Google credential in Firestore under
+// a one-time session key. When the tab closes we read the credential back and
+// call signInWithCredential, which works inside the WebView with no redirects.
+async function signInWithGoogleViaRelay() {
+    const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
+    if (!BrowserPlugin) {
+        throw new Error('Capacitor Browser plugin not available.');
+    }
+
+    // Generate a cryptographically random one-time session key
+    const sessionKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+
+    const relayUrl = `https://domaaf.infraaceops.com/auth-relay.html?s=${sessionKey}`;
+    console.log('[AUTH] Opening relay page:', relayUrl);
+
+    await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
+
+    return new Promise((resolve, reject) => {
+        let listenerHandle = null;
+
+        BrowserPlugin.addListener('browserFinished', async () => {
+            if (listenerHandle) listenerHandle.remove();
+            console.log('[AUTH] Chrome Custom Tab closed — reading relay credential');
+            try {
+                const db   = firebase.firestore();
+                const snap = await db.collection('auth_sessions').doc(sessionKey).get();
+
+                if (!snap.exists) {
+                    reject(new Error('Sign-in was not completed. Please try again.'));
+                    return;
+                }
+
+                const data = snap.data();
+                // Delete immediately — one-time use only
+                db.collection('auth_sessions').doc(sessionKey).delete().catch(console.warn);
+
+                if (!data.idToken && !data.accessToken) {
+                    reject(new Error('No credentials received. Please try again.'));
+                    return;
+                }
+
+                // Build a Google Firebase credential and sign in
+                const credential = firebase.auth.GoogleAuthProvider.credential(
+                    data.idToken    || null,
+                    data.accessToken || null
+                );
+                const authResult = await firebase.auth().signInWithCredential(credential);
+                resolve({ user: authResult.user, isNewUser: data.isNewUser });
+
+            } catch (err) {
+                console.error('[AUTH] Relay error:', err);
+                reject(err);
+            }
+        }).then(handle => { listenerHandle = handle; });
+    });
 }
 
 /**
@@ -1527,51 +1592,6 @@ function initAuthListener() {
  * Handle Firebase Dynamic Email Actions (Reset Password, Verify Email)
  */
 async function handleFirebaseAuthActions() {
-    // ── Step 1: Check for a pending Google redirect result ──
-    // Handles the case where signInWithRedirect was used (APK, or popup-blocked web).
-    try {
-        const redirectResult = await firebase.auth().getRedirectResult();
-        if (redirectResult && redirectResult.user) {
-            console.log('[AUTH] getRedirectResult: user signed in via redirect:', redirectResult.user.email);
-            const user = redirectResult.user;
-            const isNewUser = redirectResult.additionalUserInfo?.isNewUser;
-
-            const db = firebase.firestore();
-            const userRef = db.collection('users').doc(user.uid);
-            if (isNewUser) {
-                await userRef.set({
-                    email: user.email,
-                    displayName: user.displayName || user.email.split('@')[0],
-                    domaafVerified: true,
-                    provider: 'google',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } else {
-                userRef.update({ domaafVerified: true, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(console.warn);
-            }
-
-            const loginModal = document.getElementById('login-modal');
-            if (loginModal) loginModal.classList.add('hidden');
-            localStorage.setItem('domaaf_auth_hint', 'true');
-            syncUserProfile(user).catch(console.error);
-
-            const displayName = user.displayName || user.email.split('@')[0];
-            if (isNewUser) {
-                showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
-            } else {
-                showThemedWelcomePopup(displayName);
-            }
-            return;
-        }
-    } catch (redirectErr) {
-        if (redirectErr.code !== 'auth/popup-closed-by-user' &&
-            redirectErr.code !== 'auth/cancelled-popup-request' &&
-            redirectErr.code !== 'auth/no-auth-event') {
-            console.error('[AUTH] getRedirectResult error:', redirectErr);
-        }
-    }
-
     // ── Step 2: Handle email action links (password reset, email verification) ──
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');

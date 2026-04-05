@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domaaf – Signing In...</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0f172a;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 28px;
+            padding: 48px 40px;
+            max-width: 380px;
+            width: 100%;
+            text-align: center;
+        }
+        .logo {
+            width: 64px; height: 64px;
+            background: rgba(16,185,129,0.1);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 28px;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 10px; }
+        p  { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 28px; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(16,185,129,0.2);
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn {
+            display: block; width: 100%; height: 52px;
+            background: linear-gradient(135deg,#10b981,#34d399);
+            border: none; border-radius: 14px;
+            color: white; font-size: 1rem; font-weight: 700;
+            cursor: pointer; font-family: inherit;
+            box-shadow: 0 8px 24px rgba(16,185,129,0.3);
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: default; }
+        .error { color: #ef4444; font-size: 0.9rem; margin-top: 16px; display: none; }
+        #status-icon { font-size: 2.5rem; margin-bottom: 16px; display: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" style="width:32px;height:32px;">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+    </div>
+
+    <div id="status-icon"></div>
+    <h1 id="title">Sign in with Google</h1>
+    <p id="desc">Tap the button below to sign in with your Google account. You'll be returned to the app automatically.</p>
+
+    <div class="spinner" id="spinner" style="display:none;"></div>
+    <button class="btn" id="signin-btn" onclick="startGoogleSignIn()">Continue with Google</button>
+    <div class="error" id="error-msg"></div>
+</div>
+
+<!-- Firebase SDKs (no defer – must be synchronous for auth relay) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+// ── Firebase init ──────────────────────────────────────────────────────────
+const firebaseConfig = {
+    apiKey:            "AIzaSyA-MsYW0C83qJMnq-CAw7SiQFEXUeZMN-E",
+    authDomain:        "domaaf-74bfb.firebaseapp.com",
+    projectId:         "domaaf-74bfb",
+    storageBucket:     "domaaf-74bfb.firebasestorage.app",
+    messagingSenderId: "1015839227545",
+    appId:             "1:1015839227545:web:d40f6b59e2340b6d968208"
+};
+
+// Avoid double-init if page is reloaded
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+// ── Read session key from URL ──────────────────────────────────────────────
+const sessionKey = new URLSearchParams(window.location.search).get('s');
+
+function showError(msg) {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('signin-btn').disabled = false;
+    document.getElementById('signin-btn').style.display = 'block';
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function showSuccess() {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('signin-btn').style.display = 'none';
+    document.getElementById('status-icon').textContent = '✅';
+    document.getElementById('status-icon').style.display = 'block';
+    document.getElementById('title').textContent = 'Signed In!';
+    document.getElementById('desc').textContent = 'Authentication complete. Returning to the Domaaf app…';
+    // Auto-close after 2.5 seconds
+    setTimeout(() => window.close(), 2500);
+}
+
+async function startGoogleSignIn() {
+    if (!sessionKey) {
+        showError('Invalid session. Please go back to the app and try again.');
+        return;
+    }
+
+    const btn = document.getElementById('signin-btn');
+    btn.disabled = true;
+    btn.style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('desc').textContent = 'Opening Google sign-in…';
+
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        const result = await auth.signInWithPopup(provider);
+        const user       = result.user;
+        const credential = result.credential;
+
+        if (!credential) throw new Error('No credential returned from Google.');
+
+        // Store credential tokens in Firestore for the APK to read back
+        await db.collection('auth_sessions').doc(sessionKey).set({
+            idToken:     credential.idToken     || null,
+            accessToken: credential.accessToken || null,
+            email:       user.email,
+            displayName: user.displayName || user.email.split('@')[0],
+            photoURL:    user.photoURL    || null,
+            isNewUser:   result.additionalUserInfo?.isNewUser || false,
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showSuccess();
+
+    } catch (err) {
+        console.error('[AUTH-RELAY] Error:', err);
+        if (err.code === 'auth/popup-closed-by-user' ||
+            err.code === 'auth/cancelled-popup-request') {
+            showError('Sign-in was cancelled. You can try again.');
+        } else {
+            showError('Sign-in failed: ' + (err.message || err.code));
+        }
+    }
+}
+</script>
+</body>
+</html>

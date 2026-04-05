@@ -1053,34 +1053,21 @@ function initModals() {
     }
 
     // Google Login Button — unified sign-up & sign-in flow
-    // Web: signInWithPopup (works in real browsers).
-    // APK: signInWithGoogleViaRelay (opens Chrome Custom Tab with auth-relay.html,
-    //      avoids all Android WebView cross-origin storage partitioning issues).
+    // Both Web and APK now use the Auth Relay mechanism (signInWithGoogleViaRelay).
+    // This opens the auth-relay.html in a real browser context (Chrome Custom Tab for APK,
+    // or a standard window for Web) to avoid all storage partitioning issues.
     const googleLoginBtn = document.querySelector('.btn-google');
     if (googleLoginBtn) {
         googleLoginBtn.onclick = async () => {
-            console.log("Google Login clicked");
+            console.log("[AUTH] Google Login clicked — using relay flow");
             try {
                 sessionStorage.setItem('isAuthProcessing', 'true');
                 await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-                let user, isNewUser;
-
-                if (isMobileApp()) {
-                    // ── APK path: use Chrome Custom Tab relay page ──────────────
-                    console.log('[AUTH] APK detected — using relay page flow');
-                    const relayResult = await signInWithGoogleViaRelay();
-                    user      = relayResult.user;
-                    isNewUser = relayResult.isNewUser;
-                } else {
-                    // ── Web path: standard popup (works in real browsers) ────────
-                    console.log('[AUTH] Web — using signInWithPopup');
-                    const provider = new firebase.auth.GoogleAuthProvider();
-                    provider.setCustomParameters({ prompt: 'select_account' });
-                    const result = await firebase.auth().signInWithPopup(provider);
-                    user      = result.user;
-                    isNewUser = result.additionalUserInfo?.isNewUser;
-                }
+                // Use the relay flow for ALL environments for maximum reliability
+                const relayResult = await signInWithGoogleViaRelay();
+                const user      = relayResult.user;
+                const isNewUser = relayResult.isNewUser;
 
                 // ── Sync Firestore profile ──────────────────────────────────────
                 const db      = firebase.firestore();
@@ -1153,18 +1140,14 @@ function initModals() {
     }
 }
 
-// ── APK Google Sign-In via Auth Relay Page ────────────────────────────────
-// Opens https://domaaf.infraaceops.com/auth-relay.html in a Chrome Custom Tab
-// (a real browser, NOT the WebView). The relay page does signInWithPopup —
-// which works fine in Chrome — stores the Google credential in Firestore under
-// a one-time session key. When the tab closes we read the credential back and
-// call signInWithCredential, which works inside the WebView with no redirects.
+// ── Google Sign-In via Auth Relay Page ──────────────────────────────────────
+// Works for BOTH Web and APK.
+// 1. Generates a session key.
+// 2. Opens https://domaaf.infraaceops.com/auth-relay.html (Real browser context).
+// 3. For APK: uses @capacitor/browser (Chrome Custom Tab).
+// 4. For Web: uses window.open (standard popup/tab).
+// 5. Reads back the Google credential stored in Firestore by the relay page.
 async function signInWithGoogleViaRelay() {
-    const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
-    if (!BrowserPlugin) {
-        throw new Error('Capacitor Browser plugin not available.');
-    }
-
     // Generate a cryptographically random one-time session key
     const sessionKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
@@ -1172,46 +1155,62 @@ async function signInWithGoogleViaRelay() {
     const relayUrl = `https://domaaf.infraaceops.com/auth-relay.html?s=${sessionKey}`;
     console.log('[AUTH] Opening relay page:', relayUrl);
 
-    await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
+    if (isMobileApp()) {
+        const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
+        if (!BrowserPlugin) throw new Error('Capacitor Browser plugin not available.');
+        
+        await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
 
-    return new Promise((resolve, reject) => {
-        let listenerHandle = null;
+        return new Promise((resolve, reject) => {
+            let listenerHandle = null;
+            BrowserPlugin.addListener('browserFinished', async () => {
+                if (listenerHandle) listenerHandle.remove();
+                resolve(readRelayCredential(sessionKey));
+            }).then(handle => { listenerHandle = handle; });
+        });
+    } else {
+        // Web context: Open in a standard popup/tab
+        const relayTab = window.open(relayUrl, 'DomaafAuthRelay', 'width=500,height=600');
+        if (!relayTab) throw new Error('Popup blocked. Please allow popups for Domaaf.');
 
-        BrowserPlugin.addListener('browserFinished', async () => {
-            if (listenerHandle) listenerHandle.remove();
-            console.log('[AUTH] Chrome Custom Tab closed — reading relay credential');
-            try {
-                const db   = firebase.firestore();
-                const snap = await db.collection('auth_sessions').doc(sessionKey).get();
-
-                if (!snap.exists) {
-                    reject(new Error('Sign-in was not completed. Please try again.'));
-                    return;
+        return new Promise((resolve, reject) => {
+            const checkTabClosed = setInterval(async () => {
+                if (relayTab.closed) {
+                    clearInterval(checkTabClosed);
+                    try {
+                        resolve(await readRelayCredential(sessionKey));
+                    } catch (err) { reject(err); }
                 }
+            }, 1000);
+        });
+    }
+}
 
-                const data = snap.data();
-                // Delete immediately — one-time use only
-                db.collection('auth_sessions').doc(sessionKey).delete().catch(console.warn);
+async function readRelayCredential(sessionKey) {
+    console.log('[AUTH] Reading relay credential from Firestore...');
+    const db   = firebase.firestore();
+    const docRef = db.collection('auth_sessions').doc(sessionKey);
+    const snap = await docRef.get();
 
-                if (!data.idToken && !data.accessToken) {
-                    reject(new Error('No credentials received. Please try again.'));
-                    return;
-                }
+    if (!snap.exists) {
+        throw new Error('Sign-in was not completed or timed out.');
+    }
 
-                // Build a Google Firebase credential and sign in
-                const credential = firebase.auth.GoogleAuthProvider.credential(
-                    data.idToken    || null,
-                    data.accessToken || null
-                );
-                const authResult = await firebase.auth().signInWithCredential(credential);
-                resolve({ user: authResult.user, isNewUser: data.isNewUser });
+    const data = snap.data();
+    // Delete immediately — one-time use only for security
+    docRef.delete().catch(console.warn);
 
-            } catch (err) {
-                console.error('[AUTH] Relay error:', err);
-                reject(err);
-            }
-        }).then(handle => { listenerHandle = handle; });
-    });
+    if (!data.idToken && !data.accessToken) {
+        throw new Error('No credentials received from Google.');
+    }
+
+    // Build a Google Firebase credential and sign in
+    const credential = firebase.auth.GoogleAuthProvider.credential(
+        data.idToken    || null,
+        data.accessToken || null
+    );
+    const authResult = await firebase.auth().signInWithCredential(credential);
+    return { user: authResult.user, isNewUser: data.isNewUser };
 }
 
 /**

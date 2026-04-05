@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── 1. Auth Relay Sessions (CRITICAL for Google Login) ──
+    // These are temporary one-time tickets used by the APK/Web relay.
+    // They are automatically deleted after a single successful login.
+    match /auth_sessions/{sessionId} {
+      allow read, write, delete: if true;
+    }
+
+    // ── 2. User Profiles ──
+    // Users can only read and write their own profile document.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── 3. Properties ──
+    // - Anyone (including guests) can read/view properties.
+    // - Only authenticated users can create a new property.
+    // - Only the owner of a property can update or delete it.
+    match /properties/{propertyId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+    // ── 4. Global Settings (Optional) ──
+    // Allow read-only access to global app settings if any.
+    match /app_settings/{document=**} {
+      allow read: if true;
+      allow write: if false; // Only manageable via Firebase Console by admin
+    }
+  }
+}

@@ -118,8 +118,8 @@ function showSuccess() {
     document.getElementById('status-icon').style.display = 'block';
     document.getElementById('title').textContent = 'Signed In!';
     document.getElementById('desc').textContent = 'Authentication complete. Returning to the Domaaf app…';
-    // Auto-close after 2.5 seconds
-    setTimeout(() => window.close(), 2500);
+    // Auto-close after 1.5 seconds (main app now has a real-time listener)
+    setTimeout(() => window.close(), 1500);
 }
 
 async function startGoogleSignIn() {

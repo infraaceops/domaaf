@@ -1092,27 +1092,12 @@ function initModals() {
             const isNewUser = relayResult.isNewUser;
 
             // ── Sync Firestore profile ──────────────────────────────────────
-            const db      = firebase.firestore();
-            const userRef = db.collection('users').doc(user.uid);
-            if (isNewUser) {
-                await userRef.set({
-                    email:        user.email,
-                    displayName:  user.displayName || user.email.split('@')[0],
-                    domaafVerified: true,
-                    provider:     'google',
-                    createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
-                    lastLogin:    firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } else {
-                userRef.update({
-                    domaafVerified: true,
-                    lastLogin:      firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(err => console.warn('[AUTH] Profile sync warn:', err));
-            }
+            await syncUserProfile(user);
 
             // ── Update UI ───────────────────────────────────────────────────
             if (loginModal) loginModal.classList.add('hidden');
             localStorage.setItem('domaaf_auth_hint', 'true');
+            localStorage.setItem('is_google_auth', 'true');
 
             const authButtons    = document.getElementById('auth-buttons');
             const userProfileEl  = document.getElementById('user-profile');
@@ -1140,8 +1125,6 @@ function initModals() {
             };
             setAvatar(userAvatarEl);
             setAvatar(dropdownAvatar);
-
-            syncUserProfile(user).catch(console.error);
 
             if (isNewUser) {
                 showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
@@ -1176,51 +1159,91 @@ async function signInWithGoogleViaRelay() {
     const relayUrl = `https://domaaf.infraaceops.com/auth-relay.html?s=${sessionKey}`;
     console.log('[AUTH] Opening relay page:', relayUrl);
 
+    // ── Open the relay page ──────────────────────────────────────────────────
+    let relayTab = null;
     if (isMobileApp()) {
         const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
         if (!BrowserPlugin) throw new Error('Capacitor Browser plugin not available.');
-        
         await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
-
-        return new Promise((resolve, reject) => {
-            let listenerHandle = null;
-            BrowserPlugin.addListener('browserFinished', async () => {
-                if (listenerHandle) listenerHandle.remove();
-                resolve(readRelayCredential(sessionKey));
-            }).then(handle => { listenerHandle = handle; });
-        });
     } else {
-        // Web context: Open in a standard popup/tab
-        const relayTab = window.open(relayUrl, 'DomaafAuthRelay', 'width=500,height=600');
+        relayTab = window.open(relayUrl, 'DomaafAuthRelay', 'width=500,height=600');
         if (!relayTab) throw new Error('Popup blocked. Please allow popups for Domaaf.');
+    }
 
-        return new Promise((resolve, reject) => {
-            const checkTabClosed = setInterval(async () => {
-                if (relayTab.closed) {
-                    clearInterval(checkTabClosed);
+    // ── Pre-emptive Firestore Listener (The "Automatic" part) ─────────────────
+    // We listen for the document to appear, rather than waiting for the tab to close.
+    return new Promise((resolve, reject) => {
+        const db = firebase.firestore();
+        const docRef = db.collection('auth_sessions').doc(sessionKey);
+        
+        console.log('[AUTH] Listening for auth session document...', sessionKey);
+        
+        const unsubscribe = docRef.onSnapshot(async (snap) => {
+            if (snap.exists) {
+                const data = snap.data();
+                if (data.idToken || data.accessToken) {
+                    console.log('[AUTH] Session data detected! Proceeding with login...');
+                    unsubscribe(); // Stop listening immediately
+                    
                     try {
-                        resolve(await readRelayCredential(sessionKey));
-                    } catch (err) { reject(err); }
+                        const result = await readRelayCredential(sessionKey, data);
+                        
+                        // Attempt to close the tab/browser if it's still open
+                        if (relayTab) relayTab.close();
+                        if (isMobileApp()) {
+                            window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
+                        }
+                        
+                        resolve(result);
+                    } catch (err) {
+                        reject(err);
+                    }
+                }
+            }
+        }, (error) => {
+            console.error('[AUTH] Snapshot listener error:', error);
+            unsubscribe();
+            reject(new Error('Auth session sync failed: ' + error.message));
+        });
+
+        // Fallback: If the user manually closes the tab without picking an account
+        if (isMobileApp()) {
+            window.Capacitor?.Plugins?.Browser?.addListener('browserFinished', () => {
+                setTimeout(() => {
+                    unsubscribe();
+                    reject(new Error('Sign-in window closed.'));
+                }, 1000); // Small grace period for the snapshot to fire first
+            });
+        } else {
+            const checkTab = setInterval(() => {
+                if (relayTab && relayTab.closed) {
+                    clearInterval(checkTab);
+                    setTimeout(() => {
+                        unsubscribe();
+                        reject(new Error('Sign-in window closed.'));
+                    }, 1000);
                 }
             }, 1000);
-        });
-    }
+        }
+    });
 }
 
-async function readRelayCredential(sessionKey) {
+async function readRelayCredential(sessionKey, predefinedData = null) {
     console.log('[AUTH] Starting credential retrieval for session:', sessionKey);
     const db = firebase.firestore();
     try {
         const docRef = db.collection('auth_sessions').doc(sessionKey);
-        console.log('[AUTH] Fetching session document from Firestore...');
-        const snap = await docRef.get();
+        let data = predefinedData;
 
-        if (!snap.exists) {
-            console.error('[AUTH] Relay document NOT FOUND for session:', sessionKey);
-            throw new Error('Sign-in session not found or expired. Please try again.');
+        if (!data) {
+            console.log('[AUTH] Fetching session document from Firestore manually...');
+            const snap = await docRef.get();
+            if (!snap.exists) {
+                console.error('[AUTH] Relay document NOT FOUND for session:', sessionKey);
+                throw new Error('Sign-in session not found or expired. Please try again.');
+            }
+            data = snap.data();
         }
-
-        const data = snap.data();
         console.log('[AUTH] Relay data retrieved successfully. Tokens present:', !!data.idToken, !!data.accessToken);
 
         // Delete immediately — one-time use only for security
@@ -1487,50 +1510,47 @@ function showVerificationPopup(email) {
 async function syncUserProfile(user) {
     if (!user) return;
 
-    // EXTREMELY IMPORTANT: Only sync to Firestore if email is verified
-    if (!user.emailVerified) {
-        console.log("Skipping Firestore sync: Email not verified for", user.email);
+    // Google users are automatically considered verified
+    const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
+
+    console.log("[DEBUG] syncUserProfile called for:", user.email, "Verified:", user.emailVerified, "isGoogle:", isGoogleUser);
+
+    if (!user.emailVerified && !isGoogleUser) {
+        console.log("[DEBUG] Skipping Firestore sync: Not qualified (unverified non-Google).");
         return;
     }
 
-    console.log("Syncing profile for:", user.email);
-
-    // Safety timeout to prevent hanging the whole app
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 5000));
+    console.log("[DEBUG] Qualified for sync. Starting Firestore operations...");
 
     try {
         const db = firebase.firestore();
         const userRef = db.collection('users').doc(user.uid);
 
-        // Use Promise.race to enforce a timeout on the Firestore call
-        const doc = await Promise.race([
-            userRef.get(),
-            timeout
-        ]);
-
         const userData = {
             email: user.email,
             lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
-            domaafVerified: true  // Stamp as verified since they passed emailVerified check
+            domaafVerified: true,
+            provider: isGoogleUser ? 'google' : 'password'
         };
 
-        if (!doc.exists) {
-            userData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            userData.displayName = user.displayName || user.email.split('@')[0];
-            await userRef.set(userData);
-            console.log("Firestore profile created.");
-        } else {
-            await userRef.update(userData);
-            console.log("Firestore profile updated.");
+        // Standardizing: use set with merge for robust "upsert"
+        // This ensures the doc is created if missing, and updated if exists.
+        await userRef.set(userData, { merge: true });
+
+        // If it's a completely new document, add the decorative fields
+        const docSnap = await userRef.get();
+        if (docSnap.exists && !docSnap.data().createdAt) {
+            await userRef.update({
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                displayName: user.displayName || user.email.split('@')[0]
+            });
         }
 
-        // Success: Set auth hint to prevent flickering on next page load
+        console.log("Firestore profile synchronized successfully.");
         localStorage.setItem('domaaf_auth_hint', 'true');
     } catch (err) {
         console.error("Profile sync failure:", err);
-        if (err.message === "TIMEOUT") {
-            console.error("⚠️ Profile sync took too long. Check if Firestore is ENABLED in your Firebase Console.");
-        } else if (err.code === "permission-denied") {
+        if (err.code === "permission-denied") {
             console.error("⚠️ Firestore Permission Denied! Update your Rules in Firebase Console to allow writes to 'users' collection.");
         } else {
             console.warn("Profile sync had a minor issue, but login continues.");
@@ -1549,22 +1569,39 @@ function initAuthListener() {
         const dropdownAvatarMini = document.getElementById('dropdown-avatar-mini');
 
         if (user) {
-            // --- ENFORCE EMAIL VERIFICATION (Skip for Admin) ---
+            // --- ENFORCE EMAIL VERIFICATION (Skip for Admin or Google Users) ---
             const isAdmin = ['admin@domaaf.com'].includes(user.email?.toLowerCase());
+            
+            // Comprehensive Google user check: either via providerData or external flag
+            const isGoogleByProvider = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
+            const isGoogleByHint = localStorage.getItem('is_google_auth') === 'true';
+            const isGoogleUser = isGoogleByProvider || isGoogleByHint;
 
-            if (!user.emailVerified && !isAdmin) {
-                console.warn("User is logged in but NOT verified. Enforcing logout.");
-                localStorage.removeItem('domaaf_auth_hint');
+            if (!user.emailVerified && !isAdmin && !isGoogleUser) {
+                // IMPORTANT: Give a small grace period for the SDK to populate providerData
+                // This prevents race conditions during the initial login fire.
+                setTimeout(async () => {
+                    const freshUser = firebase.auth().currentUser;
+                    if (!freshUser) return;
+                    
+                    const stillGoogleCheck = freshUser.providerData && freshUser.providerData.some(p => p.providerId === 'google.com');
+                    if (!freshUser.emailVerified && !isAdmin && !stillGoogleCheck) {
+                        console.warn("Unverified non-Google user confirmed. Enforcing logout.");
+                        localStorage.removeItem('domaaf_auth_hint');
+                        localStorage.removeItem('is_google_auth');
 
-                if (authButtons) authButtons.style.display = 'flex';
-                if (userProfile) userProfile.style.display = 'none';
+                        if (authButtons) authButtons.style.display = 'flex';
+                        if (userProfile) userProfile.style.display = 'none';
 
-                await firebase.auth().signOut();
+                        await firebase.auth().signOut();
+                    }
+                }, 2000); 
                 return;
             }
 
             // --- VERIFIED USER FLOW ---
             localStorage.setItem('domaaf_auth_hint', 'true');
+            if (isGoogleUser) localStorage.setItem('is_google_auth', 'true');
 
             if (authButtons) authButtons.style.display = 'none';
             if (userProfile) userProfile.style.display = 'flex';

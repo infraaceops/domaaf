@@ -30,7 +30,13 @@ service cloud.firestore {
     // Allow read-only access to global app settings if any.
     match /app_settings/{document=**} {
       allow read: if true;
-      allow write: if false; // Only manageable via Firebase Console by admin
+      allow write: if false; 
+    }
+
+    // ── 5. Debug Logs ──
+    match /debug_logs/{logId} {
+      allow read: if false; // Only manageable by admin via console
+      allow create: if true; // Allow anyone to post diagnostic data
     }
   }
 }

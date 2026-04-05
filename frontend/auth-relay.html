@@ -99,7 +99,20 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db   = firebase.firestore();
 const auth = firebase.auth();
 
-// ── Read session key from URL ──────────────────────────────────────────────
+async function logToFirestore(event, details = {}) {
+    try {
+        await db.collection('debug_logs').add({
+            source: 'auth-relay',
+            event,
+            details,
+            projectId: firebaseConfig.projectId,
+            url: window.location.href,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) { console.error("Logger failed", e); }
+}
+
+logToFirestore('page-load', { sessionKey });
 const sessionKey = new URLSearchParams(window.location.search).get('s');
 
 function showError(msg) {
@@ -145,11 +158,13 @@ async function startGoogleSignIn() {
         provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
 
         console.log('[RELAY] Calling signInWithPopup...');
+        logToFirestore('signin-popup-start', { provider: 'google' });
         const result = await auth.signInWithPopup(provider);
         const user       = result.user;
         const credential = result.credential;
 
         console.log('[RELAY] Popup successful. User:', user.email, "Credential present:", !!credential);
+        logToFirestore('signin-popup-success', { email: user.email, uid: user.uid, hasCredential: !!credential });
         
         if (!credential) {
             console.error('[RELAY] No credential returned from Google popup');
@@ -181,6 +196,7 @@ async function startGoogleSignIn() {
 
     } catch (err) {
         console.error('[RELAY] FAILURE:', err);
+        logToFirestore('signin-popup-error', { code: err.code, message: err.message });
         if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
             showError('Sign-in window was closed. Please try again.');
         } else if (err.code === 'permission-denied') {

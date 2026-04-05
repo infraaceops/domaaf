@@ -18,6 +18,21 @@ if (typeof firebase !== 'undefined') {
     showThemedErrorPopup("CRITICAL: Firebase SDK failed to load. Check your internet or script tags.");
 }
 
+// --- Logging Utility ---
+async function logToFirestore(event, details = {}) {
+    try {
+        const db = firebase.firestore();
+        await db.collection('debug_logs').add({
+            source: 'main-app',
+            event,
+            details,
+            projectId: window.firebaseConfig?.projectId,
+            url: window.location.href,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) { console.error("Logger failed", e); }
+}
+
 const GOOGLE_APPS_SCRIPT_URL = ""; // Removed in favor of Firebase Email Link
 
 // --- Global Utilities ---
@@ -1092,7 +1107,10 @@ function initModals() {
             const isNewUser = relayResult.isNewUser;
 
             // ── Sync Firestore profile ──────────────────────────────────────
+            console.log("[AUTH] Syncing user profile...");
+            logToFirestore('profile-sync-start', { email: user.email });
             await syncUserProfile(user);
+            logToFirestore('profile-sync-success', { email: user.email });
 
             // ── Update UI ───────────────────────────────────────────────────
             if (loginModal) loginModal.classList.add('hidden');
@@ -1134,6 +1152,7 @@ function initModals() {
 
         } catch (error) {
             console.error("[AUTH] handleGoogleRelayLogin Error:", error);
+            logToFirestore('handle-relay-login-error', { code: error.code, message: error.message });
             if (error.code !== 'auth/popup-closed-by-user' &&
                 error.code !== 'auth/cancelled-popup-request') {
                 showThemedErrorPopup(error.message || 'Sign-in failed. Please try again.');

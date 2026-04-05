@@ -1058,8 +1058,16 @@ function initModals() {
         };
     }
 
+    // Verify Google button exists
+    const googleLoginBtn = document.querySelector('.btn-google');
+    console.log("[AUTH] Google button found in DOM:", !!googleLoginBtn);
+    if (googleLoginBtn) {
+        googleLoginBtn.addEventListener('click', () => {
+            console.log("[AUTH] Google Login button clicked (Direct Listener)");
+        });
+    }
+
     // Google Login Logic — unified sign-up & sign-in flow
-    // Now called via event delegation for maximum reliability.
     async function handleGoogleRelayLogin(loginModal) {
         console.log("[AUTH] handleGoogleRelayLogin triggered");
         try {

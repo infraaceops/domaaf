@@ -1,0 +1,26 @@
+# Jekyll configuration
+# This file is critical for GitHub Pages to build correctly
+
+# Exclude these directories from processing to avoid build timeouts/errors 
+# (especially node_modules which contains thousands of files)
+exclude:
+  - node_modules
+  - backend/node_modules
+  - backend
+  - android
+  - node_modules
+  - pkg
+  - .github
+  - .gemini
+  - README.md
+  - LICENSE
+  - docker-compose.yml
+  - package.json
+  - package-lock.json
+  - register.js
+  - implementation_plan.md
+  - capacitor.config.json
+
+# If you want to serve the site from the frontend directory:
+# source: frontend
+# (Note: Moving CNAME to frontend/ would be required if you do this)

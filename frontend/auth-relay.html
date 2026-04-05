@@ -141,24 +141,31 @@ async function startGoogleSignIn() {
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
+        provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+        provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
 
         console.log('[RELAY] Calling signInWithPopup...');
         const result = await auth.signInWithPopup(provider);
         const user       = result.user;
         const credential = result.credential;
 
-        console.log('[RELAY] Popup successful. User:', user.email);
+        console.log('[RELAY] Popup successful. User:', user.email, "Credential present:", !!credential);
         
         if (!credential) {
             console.error('[RELAY] No credential returned from Google popup');
-            throw new Error('No credential returned from Google. Please ensure popups and third-party cookies are allowed.');
+            throw new Error('No credential returned from Google. This usually happens if popups are blocked or third-party cookies are disabled.');
         }
 
         desc.textContent = 'Verifying and saving session…';
-        console.log('[RELAY] Storing tokens in Firestore for session:', sessionKey);
+        console.log('[RELAY] Tokens found:', { 
+            hasId: !!credential.idToken, 
+            hasAccess: !!credential.accessToken,
+            tokenType: credential.idToken ? 'idToken' : 'accessToken'
+        });
 
         // Store tokens in Firestore for the APK/Web app to read back
-        await db.collection('auth_sessions').doc(sessionKey).set({
+        const sessionsRef = db.collection('auth_sessions').doc(sessionKey);
+        await sessionsRef.set({
             idToken:     credential.idToken     || null,
             accessToken: credential.accessToken || null,
             email:       user.email,

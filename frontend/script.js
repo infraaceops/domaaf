@@ -1170,39 +1170,58 @@ async function signInWithGoogleViaRelay() {
         if (!relayTab) throw new Error('Popup blocked. Please allow popups for Domaaf.');
     }
 
-    // ── Pre-emptive Firestore Listener (The "Automatic" part) ─────────────────
-    // We listen for the document to appear, rather than waiting for the tab to close.
+    // ── Pre-emptive Dual-Channel Listener (Automatic & Reliable) ───────────
     return new Promise((resolve, reject) => {
         const db = firebase.firestore();
         const docRef = db.collection('auth_sessions').doc(sessionKey);
+        const storageKey = `domaaf_auth_${sessionKey}`;
         
-        console.log('[AUTH] Listening for auth session document...', sessionKey);
+        console.log('[AUTH] Listening via dual-channel (Firestore + LocalStorage)...', sessionKey);
         
+        let solved = false;
+        const cleanup = (unsubscribe, interval) => {
+            if (solved) return;
+            solved = true;
+            if (unsubscribe) unsubscribe();
+            if (interval) clearInterval(interval);
+            localStorage.removeItem(storageKey); 
+        };
+
+        // Channel 1: LocalStorage (Fastest for same-domain web)
+        const checkLocal = setInterval(async () => {
+            const raw = localStorage.getItem(storageKey);
+            if (raw) {
+                try {
+                    const data = JSON.parse(raw);
+                    console.log('[AUTH] Token detected via LocalStorage! Proceeding...');
+                    cleanup(unsubscribe, checkLocal);
+                    const result = await readRelayCredential(sessionKey, data);
+                    if (relayTab) relayTab.close();
+                    if (isMobileApp()) window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
+                    resolve(result);
+                } catch (e) { console.error("LS parse error", e); }
+            }
+        }, 500);
+
+        // Channel 2: Firestore (Essential for APK / Cross-origin)
         const unsubscribe = docRef.onSnapshot(async (snap) => {
-            if (snap.exists) {
+            if (snap.exists && !solved) {
                 const data = snap.data();
                 if (data.idToken || data.accessToken) {
-                    console.log('[AUTH] Session data detected! Proceeding with login...');
-                    unsubscribe(); // Stop listening immediately
+                    console.log('[AUTH] Token detected via Firestore! Proceeding...');
+                    cleanup(unsubscribe, checkLocal);
                     
                     try {
                         const result = await readRelayCredential(sessionKey, data);
-                        
-                        // Attempt to close the tab/browser if it's still open
                         if (relayTab) relayTab.close();
-                        if (isMobileApp()) {
-                            window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
-                        }
-                        
+                        if (isMobileApp()) window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
                         resolve(result);
-                    } catch (err) {
-                        reject(err);
-                    }
+                    } catch (err) { reject(err); }
                 }
             }
         }, (error) => {
             console.error('[AUTH] Snapshot listener error:', error);
-            unsubscribe();
+            cleanup(unsubscribe, checkLocal);
             reject(new Error('Auth session sync failed: ' + error.message));
         });
 

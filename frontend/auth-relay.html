@@ -156,22 +156,23 @@ async function startGoogleSignIn() {
             throw new Error('No credential returned from Google. This usually happens if popups are blocked or third-party cookies are disabled.');
         }
 
-        desc.textContent = 'Verifying and saving session…';
-        console.log('[RELAY] Tokens found:', { 
-            hasId: !!credential.idToken, 
-            hasAccess: !!credential.accessToken,
-            tokenType: credential.idToken ? 'idToken' : 'accessToken'
-        });
-
-        // Store tokens in Firestore for the APK/Web app to read back
-        const sessionsRef = db.collection('auth_sessions').doc(sessionKey);
-        await sessionsRef.set({
+        // 1. Store in localStorage (for same-domain web apps)
+        const sessionData = {
             idToken:     credential.idToken     || null,
             accessToken: credential.accessToken || null,
             email:       user.email,
             displayName: user.displayName || user.email.split('@')[0],
             photoURL:    user.photoURL    || null,
             isNewUser:   result.additionalUserInfo?.isNewUser || false,
+            ts:          Date.now()
+        };
+        localStorage.setItem(`domaaf_auth_${sessionKey}`, JSON.stringify(sessionData));
+
+        // 2. Store in Firestore (for APKs and cross-origin)
+        console.log('[RELAY] Storing tokens in Firestore for session:', sessionKey);
+        const sessionsRef = db.collection('auth_sessions').doc(sessionKey);
+        await sessionsRef.set({
+            ...sessionData,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp()
         });
 

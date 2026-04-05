@@ -20,6 +20,14 @@ if (typeof firebase !== 'undefined') {
 
 const GOOGLE_APPS_SCRIPT_URL = ""; // Removed in favor of Firebase Email Link
 
+// --- Global Utilities ---
+function isMobileApp() {
+    // Returns true if running inside a Capacitor/Cordova WebView (APK)
+    return window.Capacitor !== undefined || 
+           window.location.protocol === 'capacitor:' || 
+           window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !window.location.port;
+}
+
 // --- Global Error Logger ---
 window.onerror = function (msg, url, lineNo, columnNo, error) {
     console.error(`ERROR: ${msg} at ${lineNo}:${columnNo}`);

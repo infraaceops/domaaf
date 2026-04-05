@@ -839,6 +839,12 @@ function initModals() {
         } else if (dropdown && !dropdown.contains(target)) {
             dropdown.classList.remove('show');
         }
+        // Google Login Button (Continue with Google)
+        const googleTarget = target.closest('.btn-google');
+        if (googleTarget) {
+            console.log("[AUTH] Google Login clicked — using relay flow via delegation");
+            handleGoogleRelayLogin(loginModal);
+        }
     });
 
     // Toggle Link inside Modal
@@ -1052,91 +1058,90 @@ function initModals() {
         };
     }
 
-    // Google Login Button — unified sign-up & sign-in flow
-    // Both Web and APK now use the Auth Relay mechanism (signInWithGoogleViaRelay).
-    // This opens the auth-relay.html in a real browser context (Chrome Custom Tab for APK,
-    // or a standard window for Web) to avoid all storage partitioning issues.
-    const googleLoginBtn = document.querySelector('.btn-google');
-    if (googleLoginBtn) {
-        googleLoginBtn.onclick = async () => {
-            console.log("[AUTH] Google Login clicked — using relay flow");
-            try {
-                sessionStorage.setItem('isAuthProcessing', 'true');
-                await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    // Google Login Logic — unified sign-up & sign-in flow
+    // Now called via event delegation for maximum reliability.
+    async function handleGoogleRelayLogin(loginModal) {
+        console.log("[AUTH] handleGoogleRelayLogin triggered");
+        try {
+            sessionStorage.setItem('isAuthProcessing', 'true');
+            await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-                // Use the relay flow for ALL environments for maximum reliability
-                const relayResult = await signInWithGoogleViaRelay();
-                const user      = relayResult.user;
-                const isNewUser = relayResult.isNewUser;
-
-                // ── Sync Firestore profile ──────────────────────────────────────
-                const db      = firebase.firestore();
-                const userRef = db.collection('users').doc(user.uid);
-                if (isNewUser) {
-                    await userRef.set({
-                        email:        user.email,
-                        displayName:  user.displayName || user.email.split('@')[0],
-                        domaafVerified: true,
-                        provider:     'google',
-                        createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
-                        lastLogin:    firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                } else {
-                    userRef.update({
-                        domaafVerified: true,
-                        lastLogin:      firebase.firestore.FieldValue.serverTimestamp()
-                    }).catch(console.warn);
-                }
-
-                // ── Update UI ───────────────────────────────────────────────────
-                if (loginModal) loginModal.classList.add('hidden');
-                localStorage.setItem('domaaf_auth_hint', 'true');
-
-                const authButtons    = document.getElementById('auth-buttons');
-                const userProfileEl  = document.getElementById('user-profile');
-                const userEmailText  = document.getElementById('user-display-email');
-                const userNameText   = document.getElementById('user-display-name');
-                const userAvatarEl   = document.getElementById('user-avatar');
-                const dropdownAvatar = document.getElementById('dropdown-avatar-mini');
-
-                if (authButtons)   authButtons.style.display   = 'none';
-                if (userProfileEl) userProfileEl.style.display = 'flex';
-
-                const displayName = user.displayName || user.email.split('@')[0];
-                if (userNameText)  userNameText.innerText  = displayName;
-                if (userEmailText) userEmailText.innerText = user.email;
-
-                const setAvatar = (el) => {
-                    if (!el) return;
-                    if (user.photoURL) {
-                        el.style.backgroundImage = `url(${user.photoURL})`;
-                        el.style.backgroundSize  = 'cover';
-                        el.innerText = '';
-                    } else {
-                        el.innerText = displayName[0].toUpperCase();
-                    }
-                };
-                setAvatar(userAvatarEl);
-                setAvatar(dropdownAvatar);
-
-                syncUserProfile(user).catch(console.error);
-
-                if (isNewUser) {
-                    showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
-                } else {
-                    showThemedWelcomePopup(displayName);
-                }
-
-            } catch (error) {
-                console.error("Google Login Error:", error);
-                if (error.code !== 'auth/popup-closed-by-user' &&
-                    error.code !== 'auth/cancelled-popup-request') {
-                    showThemedErrorPopup(error.message || 'Sign-in failed. Please try again.');
-                }
-            } finally {
-                sessionStorage.removeItem('isAuthProcessing');
+            // Use the relay flow for ALL environments for maximum reliability
+            const relayResult = await signInWithGoogleViaRelay();
+            if (!relayResult || !relayResult.user) {
+                throw new Error('No user data received from relay.');
             }
-        };
+
+            const user      = relayResult.user;
+            const isNewUser = relayResult.isNewUser;
+
+            // ── Sync Firestore profile ──────────────────────────────────────
+            const db      = firebase.firestore();
+            const userRef = db.collection('users').doc(user.uid);
+            if (isNewUser) {
+                await userRef.set({
+                    email:        user.email,
+                    displayName:  user.displayName || user.email.split('@')[0],
+                    domaafVerified: true,
+                    provider:     'google',
+                    createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                    lastLogin:    firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                userRef.update({
+                    domaafVerified: true,
+                    lastLogin:      firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(err => console.warn('[AUTH] Profile sync warn:', err));
+            }
+
+            // ── Update UI ───────────────────────────────────────────────────
+            if (loginModal) loginModal.classList.add('hidden');
+            localStorage.setItem('domaaf_auth_hint', 'true');
+
+            const authButtons    = document.getElementById('auth-buttons');
+            const userProfileEl  = document.getElementById('user-profile');
+            const userEmailText  = document.getElementById('user-display-email');
+            const userNameText   = document.getElementById('user-display-name');
+            const userAvatarEl   = document.getElementById('user-avatar');
+            const dropdownAvatar = document.getElementById('dropdown-avatar-mini');
+
+            if (authButtons)   authButtons.style.display   = 'none';
+            if (userProfileEl) userProfileEl.style.display = 'flex';
+
+            const displayName = user.displayName || user.email.split('@')[0];
+            if (userNameText)  userNameText.innerText  = displayName;
+            if (userEmailText) userEmailText.innerText = user.email;
+
+            const setAvatar = (el) => {
+                if (!el) return;
+                if (user.photoURL) {
+                    el.style.backgroundImage = `url(${user.photoURL})`;
+                    el.style.backgroundSize  = 'cover';
+                    el.innerText = '';
+                } else {
+                    el.innerText = displayName[0].toUpperCase();
+                }
+            };
+            setAvatar(userAvatarEl);
+            setAvatar(dropdownAvatar);
+
+            syncUserProfile(user).catch(console.error);
+
+            if (isNewUser) {
+                showThemedSuccessPopup(`Welcome to Domaaf, ${displayName}! Your Google account is verified and ready.`);
+            } else {
+                showThemedWelcomePopup(displayName);
+            }
+
+        } catch (error) {
+            console.error("[AUTH] handleGoogleRelayLogin Error:", error);
+            if (error.code !== 'auth/popup-closed-by-user' &&
+                error.code !== 'auth/cancelled-popup-request') {
+                showThemedErrorPopup(error.message || 'Sign-in failed. Please try again.');
+            }
+        } finally {
+            sessionStorage.removeItem('isAuthProcessing');
+        }
     }
 }
 

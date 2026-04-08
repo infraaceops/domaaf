@@ -37,11 +37,8 @@ const GOOGLE_APPS_SCRIPT_URL = ""; // Removed in favor of Firebase Email Link
 
 // --- Global Utilities ---
 function isMobileApp() {
-    // Returns true if running inside a Capacitor/Cordova WebView (APK)
-    const isCapacitor = window.Capacitor !== undefined || 
-                       window.location.protocol === 'capacitor:' || 
-                       (window.location.hostname === 'localhost' && !window.location.port);
-    return isCapacitor;
+    // Robust detection: Capacitor.isNative is the official way to check for APK context
+    return window.Capacitor?.isNative === true || window.location.protocol === 'capacitor:';
 }
 
 /**
@@ -1126,8 +1123,10 @@ function initModals() {
         console.log("[AUTH] handleGoogleRelayLogin triggered");
         try {
             sessionStorage.setItem('isAuthProcessing', 'true');
-            // Use the relay flow for ALL environments for maximum reliability
-            const relayResult = await signInWithGoogleViaRelay();
+            
+            // WEB OPTIMIZATION: Call relay/popup immediately in the same tick to prevent "popup-blocked"
+            const relayResultPromise = signInWithGoogleViaRelay();
+            const relayResult = await relayResultPromise;
             if (!relayResult || !relayResult.user) {
                 throw new Error('No user data received from relay.');
             }
@@ -1201,13 +1200,12 @@ async function signInWithGoogleViaRelay() {
     // ── WEB PATH: direct popup (works on proper HTTPS domain) ──────────────
     if (!isMobileApp()) {
         console.log('[AUTH] Web environment — using direct signInWithPopup');
-        // VERY IMPORTANT: MUST call signInWithPopup synchronously without awaiting anything beforehand.
-        // Otherwise, browsers (Safari, Chrome) will block the popup because it loses the user-interaction context.
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        provider.addScope('https://www.googleapis.com/auth/userinfo.email');
-        provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+        provider.addScope('email');
+        provider.addScope('profile');
         
+        // This MUST be the first await in this call-tree relative to the click event
         const result = await firebase.auth().signInWithPopup(provider);
         // Set persistence AFTER popup resolves
         await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);

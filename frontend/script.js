@@ -1124,10 +1124,25 @@ function initModals() {
         try {
             sessionStorage.setItem('isAuthProcessing', 'true');
             
-            // UNIFIED RELAY FLOW: Use the relay window for ALL environments.
-            // This is the most robust way to avoid "missing initial state" and partitioning.
-            const relayResultPromise = signInWithGoogleViaRelay();
-            const relayResult = await relayResultPromise;
+            // WEB vs APK branching
+            let relayResult;
+            if (!isMobileApp()) {
+                console.log("[AUTH] Web environment — using direct signInWithPopup");
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await firebase.auth().signInWithPopup(provider);
+                await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                relayResult = {
+                    user: result.user,
+                    isNewUser: result.additionalUserInfo?.isNewUser || false
+                };
+            } else {
+                console.log("[AUTH] APK environment — using session relay via Firestore");
+                relayResult = await signInWithGoogleViaRelay();
+            }
             if (!relayResult || !relayResult.user) {
                 throw new Error('No user data received from relay.');
             }
@@ -1206,36 +1221,23 @@ function initModals() {
 // • APK (Capacitor WebView): opens auth-relay.html in Chrome Custom Tab,
 //   then listens for the credential written to Firestore by that page.
 async function signInWithGoogleViaRelay() {
+    // Only used by APK/WebView to bypass storage partitioning
     const sessionKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // Determine relay URL dynamically (works for both custom domain and dev local)
     const baseUrl = window.location.href.split('index.html')[0].split('?')[0];
     const relayUrl = `${baseUrl}auth-relay.html?s=${sessionKey}`;
     
-    console.log('[AUTH] UNIFIED RELAY — Opening relay page:', relayUrl);
+    console.log('[AUTH] APK — opening relay page:', relayUrl);
 
-    if (!isMobileApp()) {
-        // ── WEB PATH: Open relay in a standard popup window ─────────────────
-        const w = 500;
-        const h = 600;
-        const left = (window.screen.width / 2) - (w / 2);
-        const top = (window.screen.height / 2) - (h / 2);
-        const relayPopup = window.open(relayUrl, 'domaaf_auth', `width=${w},height=${h},top=${top},left=${left}`);
-        
-        if (!relayPopup) {
-            logToFirestore('web-popup-blocked');
-            throw new Error('Sign-in window was blocked. Please allow popups for this site and try again.');
-        }
-    } else {
-        // ── APK PATH: Use Capacitor Browser (Chrome Custom Tab) ──────────────
-        const BrowserPlugin = await getCapacitorPlugin('Browser');
-        if (!BrowserPlugin) {
-            logToFirestore('plugin-error', { plugin: 'Browser' });
-            throw new Error('Capacitor Browser plugin not available. Please ensure you are using the latest app version.');
-        }
-        await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
+    // Use Capacitor Browser (Chrome Custom Tab) for stability
+    const BrowserPlugin = await getCapacitorPlugin('Browser');
+    if (!BrowserPlugin) {
+        logToFirestore('plugin-error', { plugin: 'Browser' });
+        throw new Error('Capacitor Browser plugin not available.');
     }
+    
+    await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
 
     return listenForRelayCredential(sessionKey);
 }

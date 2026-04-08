@@ -1151,6 +1151,12 @@ function initModals() {
             const isNewUser = relayResult.isNewUser;
 
             // ── Update UI IMMEDIATELY for responsiveness ───────────────────
+            const googleBtn = document.querySelector('.btn-google');
+            if (googleBtn) {
+                googleBtn.innerHTML = '<span class="spinner-small"></span> Verifying...';
+                googleBtn.disabled = true;
+            }
+
             if (loginModal) loginModal.classList.add('hidden');
             localStorage.setItem('domaaf_auth_hint', 'true');
             localStorage.setItem('is_google_auth', 'true');
@@ -1265,7 +1271,8 @@ function listenForRelayCredential(sessionKey) {
                     cleanup(unsubscribe);
                     try {
                         const result = await readRelayCredential(sessionKey, data);
-                        window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
+                        // Force close the browser tab immediately
+                        getCapacitorPlugin('Browser').then(B => B?.close().catch(() => {}));
                         resolve(result);
                     } catch (err) { reject(err); }
                 }

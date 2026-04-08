@@ -1134,16 +1134,25 @@ function initModals() {
             const user      = relayResult.user;
             const isNewUser = relayResult.isNewUser;
 
-            // ── Sync Firestore profile ──────────────────────────────────────
-            console.log("[AUTH] Syncing user profile...");
-            logToFirestore('profile-sync-start', { email: user.email });
-            await syncUserProfile(user);
-            logToFirestore('profile-sync-success', { email: user.email });
-
-            // ── Update UI ───────────────────────────────────────────────────
+            // ── Update UI IMMEDIATELY for responsiveness ───────────────────
             if (loginModal) loginModal.classList.add('hidden');
             localStorage.setItem('domaaf_auth_hint', 'true');
             localStorage.setItem('is_google_auth', 'true');
+            console.log("[AUTH] UI hints set. Updating dashboard/profile views...");
+
+            // ── Sync Firestore profile in the background ────────────────────
+            console.log("[AUTH] Syncing user profile...");
+            logToFirestore('profile-sync-start', { email: user.email });
+            
+            // We await it, but even if it fails, we've already updated the UI.
+            // This prevents "stuck" login states if Firestore is slow.
+            try {
+                await syncUserProfile(user);
+                logToFirestore('profile-sync-success', { email: user.email });
+            } catch (syncErr) {
+                console.warn("[AUTH] Profile sync failed, but login proceeded:", syncErr);
+                logToFirestore('profile-sync-failed', { error: syncErr.message });
+            }
 
             const authButtons    = document.getElementById('auth-buttons');
             const userProfileEl  = document.getElementById('user-profile');
@@ -1221,7 +1230,9 @@ async function signInWithGoogleViaRelay() {
     const sessionKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const relayUrl = `https://domaaf.infraaceops.com/frontend/auth-relay.html?s=${sessionKey}`;
+    // Determine relay URL dynamically (works for both custom domain and dev local)
+    const baseUrl = window.location.href.split('index.html')[0].split('?')[0];
+    const relayUrl = `${baseUrl}auth-relay.html?s=${sessionKey}`;
     console.log('[AUTH] APK — opening relay page:', relayUrl);
 
     const BrowserPlugin = await getCapacitorPlugin('Browser');

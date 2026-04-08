@@ -1095,8 +1095,6 @@ function initModals() {
         console.log("[AUTH] handleGoogleRelayLogin triggered");
         try {
             sessionStorage.setItem('isAuthProcessing', 'true');
-            await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
             // Use the relay flow for ALL environments for maximum reliability
             const relayResult = await signInWithGoogleViaRelay();
             if (!relayResult || !relayResult.user) {
@@ -1172,12 +1170,17 @@ async function signInWithGoogleViaRelay() {
     // ── WEB PATH: direct popup (works on proper HTTPS domain) ──────────────
     if (!isMobileApp()) {
         console.log('[AUTH] Web environment — using direct signInWithPopup');
-        await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        // VERY IMPORTANT: MUST call signInWithPopup synchronously without awaiting anything beforehand.
+        // Otherwise, browsers (Safari, Chrome) will block the popup because it loses the user-interaction context.
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         provider.addScope('https://www.googleapis.com/auth/userinfo.email');
         provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+        
         const result = await firebase.auth().signInWithPopup(provider);
+        // Set persistence AFTER popup resolves
+        await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        
         console.log('[AUTH] signInWithPopup success:', result.user.email);
         return {
             user:      result.user,

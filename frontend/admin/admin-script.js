@@ -367,11 +367,7 @@ function getValidImageUrl(url) {
         }
 
         if (fileId) {
-            const host = window.location.hostname;
-            const backendBase = (host === 'localhost' || host === '127.0.0.1')
-                ? `http://${host}:5001`
-                : `${window.location.protocol}//${host}:5001`;
-            return `${backendBase}/api/image-proxy?fileId=${fileId}`;
+            return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
         }
     }
     return url;

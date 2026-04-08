@@ -646,11 +646,9 @@ function getValidImageUrl(url) {
         }
 
         if (fileId) {
-            const host = window.location.hostname;
-            const backendBase = (host === 'localhost' || host === '127.0.0.1')
-                ? `http://${host}:5001`
-                : `${window.location.protocol}//${host}:5001`;
-            return `${backendBase}/api/image-proxy?fileId=${fileId}`;
+            // Using Drive's built-in thumbnail endpoint naturally bypasses CORS restrictions
+            // and eliminates the need for a separate backend proxy.
+            return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
         }
 
         // If we can't extract a file ID, fall through to return the URL as-is

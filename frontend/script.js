@@ -1163,108 +1163,88 @@ function initModals() {
     }
 }
 
-// ── Google Sign-In via Auth Relay Page ──────────────────────────────────────
-// Works for BOTH Web and APK.
-// 1. Generates a session key.
-// 2. Opens https://domaaf.infraaceops.com/auth-relay.html (Real browser context).
-// 3. For APK: uses @capacitor/browser (Chrome Custom Tab).
-// 4. For Web: uses window.open (standard popup/tab).
-// 5. Reads back the Google credential stored in Firestore by the relay page.
+// ── Google Sign-In — Unified Entry Point ──────────────────────────────────────
+// • Web (HTTPS domain): calls signInWithPopup directly — no relay needed.
+// • APK (Capacitor WebView): opens auth-relay.html in Chrome Custom Tab,
+//   then listens for the credential written to Firestore by that page.
 async function signInWithGoogleViaRelay() {
-    // Generate a cryptographically random one-time session key
+
+    // ── WEB PATH: direct popup (works on proper HTTPS domain) ──────────────
+    if (!isMobileApp()) {
+        console.log('[AUTH] Web environment — using direct signInWithPopup');
+        await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+        provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+        const result = await firebase.auth().signInWithPopup(provider);
+        console.log('[AUTH] signInWithPopup success:', result.user.email);
+        return {
+            user:      result.user,
+            isNewUser: result.additionalUserInfo?.isNewUser || false
+        };
+    }
+
+    // ── APK PATH: relay page via Capacitor Browser (Chrome Custom Tab) ──────
     const sessionKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 
     const relayUrl = `https://domaaf.infraaceops.com/auth-relay.html?s=${sessionKey}`;
-    console.log('[AUTH] Opening relay page:', relayUrl);
+    console.log('[AUTH] APK — opening relay page:', relayUrl);
 
-    // ── Open the relay page ──────────────────────────────────────────────────
-    let relayTab = null;
-    if (isMobileApp()) {
-        const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
-        if (!BrowserPlugin) throw new Error('Capacitor Browser plugin not available.');
-        await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
-    } else {
-        relayTab = window.open(relayUrl, 'DomaafAuthRelay', 'width=500,height=600');
-        if (!relayTab) throw new Error('Popup blocked. Please allow popups for Domaaf.');
-    }
+    const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
+    if (!BrowserPlugin) throw new Error('Capacitor Browser plugin not available.');
+    await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
 
-    // ── Pre-emptive Dual-Channel Listener (Automatic & Reliable) ───────────
+    return listenForRelayCredential(sessionKey);
+}
+
+// ── Firestore listener — used exclusively by the APK relay path ─────────────
+function listenForRelayCredential(sessionKey) {
     return new Promise((resolve, reject) => {
-        const db = firebase.firestore();
+        const db     = firebase.firestore();
         const docRef = db.collection('auth_sessions').doc(sessionKey);
-        const storageKey = `domaaf_auth_${sessionKey}`;
-        
-        console.log('[AUTH] Listening via dual-channel (Firestore + LocalStorage)...', sessionKey);
-        
-        let solved = false;
-        const cleanup = (unsubscribe, interval) => {
+        let   solved = false;
+
+        console.log('[AUTH] APK — listening for relay credential via Firestore...', sessionKey);
+
+        const cleanup = (unsubFn) => {
             if (solved) return;
             solved = true;
-            if (unsubscribe) unsubscribe();
-            if (interval) clearInterval(interval);
-            localStorage.removeItem(storageKey); 
+            if (unsubFn) unsubFn();
         };
 
-        // Channel 1: LocalStorage (Fastest for same-domain web)
-        const checkLocal = setInterval(async () => {
-            const raw = localStorage.getItem(storageKey);
-            if (raw) {
-                try {
-                    const data = JSON.parse(raw);
-                    console.log('[AUTH] Token detected via LocalStorage! Proceeding...');
-                    cleanup(unsubscribe, checkLocal);
-                    const result = await readRelayCredential(sessionKey, data);
-                    if (relayTab) relayTab.close();
-                    if (isMobileApp()) window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
-                    resolve(result);
-                } catch (e) { console.error("LS parse error", e); }
-            }
-        }, 500);
-
-        // Channel 2: Firestore (Essential for APK / Cross-origin)
         const unsubscribe = docRef.onSnapshot(async (snap) => {
             if (snap.exists && !solved) {
                 const data = snap.data();
                 if (data.idToken || data.accessToken) {
-                    console.log('[AUTH] Token detected via Firestore! Proceeding...');
-                    cleanup(unsubscribe, checkLocal);
-                    
+                    console.log('[AUTH] APK — credential received from Firestore');
+                    cleanup(unsubscribe);
                     try {
                         const result = await readRelayCredential(sessionKey, data);
-                        if (relayTab) relayTab.close();
-                        if (isMobileApp()) window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
+                        window.Capacitor?.Plugins?.Browser?.close().catch(() => {});
                         resolve(result);
                     } catch (err) { reject(err); }
                 }
             }
         }, (error) => {
             console.error('[AUTH] Snapshot listener error:', error);
-            cleanup(unsubscribe, checkLocal);
+            cleanup(unsubscribe);
             reject(new Error('Auth session sync failed: ' + error.message));
         });
 
-        // Fallback: If the user manually closes the tab without picking an account
-        if (isMobileApp()) {
-            window.Capacitor?.Plugins?.Browser?.addListener('browserFinished', () => {
-                setTimeout(() => {
-                    unsubscribe();
+        // Fallback: user closed the Chrome Custom Tab without picking an account
+        window.Capacitor?.Plugins?.Browser?.addListener('browserFinished', () => {
+            setTimeout(() => {
+                if (!solved) {
+                    cleanup(unsubscribe);
                     reject(new Error('Sign-in window closed.'));
-                }, 1000); // Small grace period for the snapshot to fire first
-            });
-        } else {
-            const checkTab = setInterval(() => {
-                if (relayTab && relayTab.closed) {
-                    clearInterval(checkTab);
-                    setTimeout(() => {
-                        unsubscribe();
-                        reject(new Error('Sign-in window closed.'));
-                    }, 1000);
                 }
-            }, 1000);
-        }
+            }, 1500); // grace period so snapshot fires first if sign-in succeeded
+        });
     });
 }
+
 
 async function readRelayCredential(sessionKey, predefinedData = null) {
     console.log('[AUTH] Starting credential retrieval for session:', sessionKey);

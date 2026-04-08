@@ -87,7 +87,7 @@
 // ── Firebase init ──────────────────────────────────────────────────────────
 const firebaseConfig = {
     apiKey:            "AIzaSyA-MsYW0C83qJMnq-CAw7SiQFEXUeZMN-E",
-    authDomain:        "domaaf-74bfb.firebaseapp.com",
+    authDomain:        "domaaf.infraaceops.com",
     projectId:         "domaaf-74bfb",
     storageBucket:     "domaaf-74bfb.firebasestorage.app",
     messagingSenderId: "1015839227545",
@@ -112,8 +112,8 @@ async function logToFirestore(event, details = {}) {
     } catch (e) { console.error("Logger failed", e); }
 }
 
-logToFirestore('page-load', { sessionKey });
 const sessionKey = new URLSearchParams(window.location.search).get('s');
+logToFirestore('page-load', { sessionKey });
 
 function showError(msg) {
     document.getElementById('spinner').style.display = 'none';

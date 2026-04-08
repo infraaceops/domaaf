@@ -2,7 +2,7 @@
 // Replace the placeholders with your actual Firebase project configuration
 const firebaseConfig = {
     apiKey: "AIzaSyA-MsYW0C83qJMnq-CAw7SiQFEXUeZMN-E",
-    authDomain: "domaaf.infraaceops.com",
+    authDomain: "domaaf-74bfb.firebaseapp.com",
     projectId: "domaaf-74bfb",
     storageBucket: "domaaf-74bfb.firebasestorage.app",
     messagingSenderId: "1015839227545",

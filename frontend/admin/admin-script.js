@@ -354,16 +354,34 @@ async function handleAction(action, id) {
 function getValidImageUrl(url) {
     const fallback = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80';
     if (!url || typeof url !== 'string' || url.trim().length < 10) return fallback;
-    if (url === 'Media uploaded to Drive (Check folder)' || url.startsWith('http://localhost')) return fallback;
+    // Reject clearly broken markers
+    if (url === 'Media uploaded to Drive (Check folder)') return fallback;
+    
+    // Safety: Only reject localhost fallback if we're NOT in the APK (since APK is localhost)
+    const isCapacitor = window.Capacitor !== undefined || window.location.protocol === 'capacitor:';
+    if (!isCapacitor && url.startsWith('http://localhost')) return fallback;
     if (url.startsWith('data:')) return url;
 
     if (url.includes('drive.google.com') || url.includes('googleusercontent.com') || url.includes('lh3.google')) {
         let fileId = null;
         const m1 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (m1) fileId = m1[1];
+        // Pattern 2: ?id=FILEID or &id=FILEID  (uc?export= links, thumbnail links)
         if (!fileId) {
             const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
             if (m2) fileId = m2[1];
+        }
+
+        // Pattern 4: /file/d/FILEID
+        if (!fileId) {
+            const m4 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+            if (m4) fileId = m4[1];
+        }
+
+        // Pattern 5: lh3.googleusercontent.com/d/FILEID or lh3.google.com/d/FILEID
+        if (!fileId) {
+            const m5 = url.match(/(?:lh3\.googleusercontent\.com|lh3\.google\.com)\/d\/([a-zA-Z0-9_-]+)/);
+            if (m5) fileId = m5[1];
         }
 
         if (fileId) {

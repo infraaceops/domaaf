@@ -38,9 +38,23 @@ const GOOGLE_APPS_SCRIPT_URL = ""; // Removed in favor of Firebase Email Link
 // --- Global Utilities ---
 function isMobileApp() {
     // Returns true if running inside a Capacitor/Cordova WebView (APK)
-    return window.Capacitor !== undefined || 
-           window.location.protocol === 'capacitor:' || 
-           window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !window.location.port;
+    const isCapacitor = window.Capacitor !== undefined || 
+                       window.location.protocol === 'capacitor:' || 
+                       (window.location.hostname === 'localhost' && !window.location.port);
+    return isCapacitor;
+}
+
+/**
+ * Robust helper to wait for a Capacitor plugin if it's not immediately available
+ */
+async function getCapacitorPlugin(name, retries = 5) {
+    for (let i = 0; i < retries; i++) {
+        const plugin = window.Capacitor?.Plugins?.[name];
+        if (plugin) return plugin;
+        console.log(`[CAPACITOR] ${name} plugin not available yet, retrying in 400ms... (${i+1}/${retries})`);
+        await new Promise(r => setTimeout(r, 400));
+    }
+    return null;
 }
 
 // --- Global Error Logger ---
@@ -191,12 +205,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- PWA Registration ---
 async function registerSW() {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && !isMobileApp()) {
         try {
-            await navigator.serviceWorker.register('sw.js');
+            await navigator.serviceWorker.register('sw.js?v=3');
+            console.log("Service Worker registered successfully.");
         } catch (e) {
             console.log('SW registration failed');
         }
+    } else if (isMobileApp()) {
+        console.log("APK detected: Service Worker registration skipped for stability.");
     }
 }
 
@@ -625,7 +642,11 @@ function getValidImageUrl(url) {
     const fallback = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80';
     if (!url || typeof url !== 'string' || url.trim().length < 10) return fallback;
     // Reject clearly broken data strings
-    if (url === 'Media uploaded to Drive (Check folder)' || url.startsWith('http://localhost')) return fallback;
+    // Reject clearly broken markers
+    if (url === 'Media uploaded to Drive (Check folder)') return fallback;
+    
+    // Safety: Only reject localhost fallback if we're NOT in the APK (since APK is localhost)
+    if (!isMobileApp() && url.startsWith('http://localhost')) return fallback;
 
     // Handle base64 - show as-is
     if (url.startsWith('data:')) return url;
@@ -643,6 +664,18 @@ function getValidImageUrl(url) {
         if (!fileId) {
             const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
             if (m2) fileId = m2[1];
+        }
+
+        // Pattern 4: /file/d/FILEID
+        if (!fileId) {
+            const m4 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+            if (m4) fileId = m4[1];
+        }
+
+        // Pattern 5: lh3.googleusercontent.com/d/FILEID or lh3.google.com/d/FILEID
+        if (!fileId) {
+            const m5 = url.match(/(?:lh3\.googleusercontent\.com|lh3\.google\.com)\/d\/([a-zA-Z0-9_-]+)/);
+            if (m5) fileId = m5[1];
         }
 
         if (fileId) {
@@ -1193,8 +1226,11 @@ async function signInWithGoogleViaRelay() {
     const relayUrl = `https://domaaf.infraaceops.com/frontend/auth-relay.html?s=${sessionKey}`;
     console.log('[AUTH] APK — opening relay page:', relayUrl);
 
-    const BrowserPlugin = window.Capacitor?.Plugins?.Browser;
-    if (!BrowserPlugin) throw new Error('Capacitor Browser plugin not available.');
+    const BrowserPlugin = await getCapacitorPlugin('Browser');
+    if (!BrowserPlugin) {
+        logToFirestore('plugin-error', { plugin: 'Browser' });
+        throw new Error('Capacitor Browser plugin not available. Please ensure you are using the latest app version.');
+    }
     await BrowserPlugin.open({ url: relayUrl, toolbarColor: '#0f172a' });
 
     return listenForRelayCredential(sessionKey);

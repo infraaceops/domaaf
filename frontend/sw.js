@@ -1,4 +1,4 @@
-const CACHE_NAME = 'domaaf-v2'; // Bumped version
+const CACHE_NAME = 'domaaf-v3'; // Bumped version to clear stale script.js cache
 const ASSETS = [
     '/',
     '/index.html',

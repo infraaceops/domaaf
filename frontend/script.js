@@ -1189,7 +1189,7 @@ async function signInWithGoogleViaRelay() {
     const sessionKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const relayUrl = `https://domaaf.infraaceops.com/auth-relay.html?s=${sessionKey}`;
+    const relayUrl = `https://domaaf.infraaceops.com/frontend/auth-relay.html?s=${sessionKey}`;
     console.log('[AUTH] APK — opening relay page:', relayUrl);
 
     const BrowserPlugin = window.Capacitor?.Plugins?.Browser;

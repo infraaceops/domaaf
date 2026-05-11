@@ -12,4 +12,4 @@ jobs:
     environment: dev
     steps:
       - name: Checkout Vars and Secrets
-        run: echo ${{ secrets.EMAIL_TOPIC }}
+        run: echo ${{vars.GREET}} ${{ vars.EMAIL_TOPIC }}
